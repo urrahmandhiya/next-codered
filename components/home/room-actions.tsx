@@ -1,6 +1,5 @@
 import { Button } from "../ui/button";
 import { Card, CardContent } from "../ui/card";
-import LinkButton from "./link-button";
 
 const HOME_DESCRIPTION = `
   Removing physical boundaries. 
@@ -19,7 +18,7 @@ export default function RoomActions({ onJoinRoom }: { onJoinRoom: () => void }) 
                 </CardContent>
             </Card>
             <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-                <LinkButton href="/room" title="Create Room" />
+                <Button variant="outline">Create Room</Button>
                 <Button variant="outline" onClick={onJoinRoom}>Join Room</Button>
             </div>
         </>
