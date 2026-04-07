@@ -1,3 +1,4 @@
+import { createRoom } from "@/app/actions";
 import { Button } from "../ui/button";
 import { Card, CardContent } from "../ui/card";
 
@@ -18,7 +19,9 @@ export default function RoomActions({ onJoinRoom }: { onJoinRoom: () => void }) 
                 </CardContent>
             </Card>
             <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-                <Button variant="outline">Create Room</Button>
+                <form action={createRoom}>
+                    <Button variant="outline" type="submit">Create Room</Button>
+                </form>
                 <Button variant="outline" onClick={onJoinRoom}>Join Room</Button>
             </div>
         </>

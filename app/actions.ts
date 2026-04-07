@@ -32,3 +32,21 @@ export async function createRoom(formData: FormData) {
 
     redirect(`room/${roomCode}`);
 }
+
+export interface Room {
+    status: string;
+    players: Player[];
+}
+
+export interface Player {
+    id: string;
+    name: string;
+    isHost: boolean;
+}
+
+export async function getRoomState(roomCode: string): Promise<{room: Room | null; userId: string | undefined}> {
+    const userId = (await cookies()).get('user_id')?.value;
+    const room = await redis.get<Room>(`room:${roomCode}`);
+
+    return {room, userId}
+}
