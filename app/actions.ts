@@ -79,7 +79,7 @@ export async function getRoomState(
     players: Object.entries(data)
       .filter(([key]) => key.startsWith("player: "))
       .map(([key, val]) => {
-        const playerData = val as Player; // redis return Object
+        const playerData = val as Player; // redis already return as Object
         const playerId = key.replace("player: ", "");
 
         return {
