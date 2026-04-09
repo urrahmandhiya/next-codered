@@ -1,4 +1,4 @@
-'use server'
+"use server";
 
 import { Redis } from "@upstash/redis";
 import { redirect } from "next/navigation";
@@ -7,46 +7,64 @@ import { cookies } from "next/headers";
 const redis = Redis.fromEnv();
 
 export async function createRoom(formData: FormData) {
-    const hostId = crypto.randomUUID();
-    // generate random 4-characterstring (DCAV)
-    const roomCode = Math.random().toString(36).substring(2, 6).toUpperCase();
+  const hostId = crypto.randomUUID();
+  // generate random 4-characterstring (DCAV)
+  const roomCode = Math.random().toString(36).substring(2, 6).toUpperCase();
 
-    const initialRoomState = {
-        status: 'waiting',
-        players: [
-            {
-                id: hostId,
-                name: 'PLAYER_1',
-                isHost: true,
-            }
-        ]
-    };
+  const playerStats = {
+    name: "PLAYER_1",
+  };
 
-    await redis.set(`room:${roomCode}`, initialRoomState);
+  const initialRoomState = {
+    status: "waiting",
+    hostId: hostId,
+    [`player: ${hostId}`]: JSON.stringify(playerStats),
+  };
 
-    (await cookies()).set('user_id', hostId, {
-        httpOnly: true,
-        path: '/',
-        sameSite: 'lax',
-    });
+  await redis.hset(`room:${roomCode}`, initialRoomState);
 
-    redirect(`room/${roomCode}`);
+  (await cookies()).set("user_id", hostId, {
+    httpOnly: true,
+    path: "/",
+    sameSite: "lax",
+  });
+
+  redirect(`room/${roomCode}`);
 }
 
-export interface Room {
-    status: string;
-    players: Player[];
-}
+export type Room = {
+  status: string;
+  hostId: string;
+  players: Player[];
+};
+
+type RedisRoom = {
+  status: string;
+  hostId: string;
+  [key: string]: string | Player;
+};
 
 export interface Player {
-    id: string;
-    name: string;
-    isHost: boolean;
+  name: string;
 }
 
-export async function getRoomState(roomCode: string): Promise<{room: Room | null; userId: string | undefined}> {
-    const userId = (await cookies()).get('user_id')?.value;
-    const room = await redis.get<Room>(`room:${roomCode}`);
+export async function getRoomState(
+roomCode: string,
+): Promise<{ room: Room | null; userId: string | undefined }> {
+  const userId = (await cookies()).get("user_id")?.value;
+  const data = await redis.hgetall<RedisRoom>(`room:${roomCode}`);
 
-    return {room, userId}
+  if (!data) {
+    return { room: null, userId };
+  }
+
+  const room: Room = {
+    status: data.status,
+    hostId: data.hostId,
+    players: Object.entries(data)
+      .filter(([key]) => key.startsWith("player:"))
+      .map(([_, val]) => val as Player),
+  };
+
+  return { room, userId };
 }

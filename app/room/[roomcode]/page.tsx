@@ -27,7 +27,7 @@ export default function Page() {
 
     async function getPlayersInRoom(roomCode: string) {
         const { room } = await getRoomState(roomCode);
-
+        console.log(room)
         if (!room) {
             throw new Error('room not found');
         }
@@ -55,7 +55,6 @@ export default function Page() {
                                             <ItemContent>
                                                 <ItemTitle className="flex justify-between w-full">
                                                     {player.name}
-                                                    {player.isHost && <Badge variant="outline">Host</Badge>}
                                                 </ItemTitle>
                                             </ItemContent>
                                         </Item>
