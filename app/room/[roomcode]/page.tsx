@@ -16,14 +16,16 @@ import {
 import { getRoomState, Player } from "@/app/actions";
 import { RefreshCw } from "lucide-react";
 import { useParams } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 
 
 
 export default function Page() {
+    const MAX_NUMBER_OF_PLAYERS = 4;
     const roomCode = String(useParams().roomcode);
     const [players, setPlayers] = useState<Player[]>([]);
+    const [numPlayersInRoom, setNumPlayersInRoom] = useState(0)
 
     async function getPlayersInRoom(roomCode: string) {
         const { room } = await getRoomState(roomCode);
@@ -34,8 +36,20 @@ export default function Page() {
 
         const playersInRoom = room.players;
 
+        setNumPlayersInRoom(room.players.length);
         setPlayers(playersInRoom);
     };
+
+    useEffect(() => {
+        async function fetchRoom() {
+            try {
+                getPlayersInRoom(roomCode)
+            } catch (error) {
+                console.log(error)
+            }
+        }
+        fetchRoom();
+    }, [roomCode])
 
     return (
         <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
@@ -43,7 +57,7 @@ export default function Page() {
                 <Button variant="outline" onClick={() => getPlayersInRoom(roomCode)}><RefreshCw /></Button>
                 <Tabs defaultValue="overview" className="min-w-64">
                     <TabsList>
-                        <TabsTrigger value="overview">Players</TabsTrigger>
+                        <TabsTrigger value="overview">Players {`[${numPlayersInRoom}/${MAX_NUMBER_OF_PLAYERS}]`}</TabsTrigger>
                         <TabsTrigger value="room-settings">Room Settings</TabsTrigger>
                     </TabsList>
                     <TabsContent value="overview">
@@ -55,6 +69,7 @@ export default function Page() {
                                             <ItemContent>
                                                 <ItemTitle className="flex justify-between w-full">
                                                     {player.name}
+                                                    {player.isHost && <Badge variant="outline">Host</Badge>}
                                                 </ItemTitle>
                                             </ItemContent>
                                         </Item>

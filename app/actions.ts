@@ -10,7 +10,6 @@ export async function createRoom(formData: FormData) {
   const hostId = crypto.randomUUID();
   // generate random 4-characterstring (DCAV)
   const roomCode = Math.random().toString(36).substring(2, 6).toUpperCase();
-
   const playerStats = {
     name: "PLAYER_1",
   };
@@ -32,11 +31,11 @@ export async function createRoom(formData: FormData) {
   redirect(`room/${roomCode}`);
 }
 
-export type Room = {
+export interface Room {
   status: string;
   hostId: string;
   players: Player[];
-};
+}
 
 type RedisRoom = {
   status: string;
@@ -45,11 +44,13 @@ type RedisRoom = {
 };
 
 export interface Player {
+  id: string;
   name: string;
+  isHost: boolean;
 }
 
 export async function getRoomState(
-roomCode: string,
+  roomCode: string,
 ): Promise<{ room: Room | null; userId: string | undefined }> {
   const userId = (await cookies()).get("user_id")?.value;
   const data = await redis.hgetall<RedisRoom>(`room:${roomCode}`);
@@ -62,8 +63,17 @@ roomCode: string,
     status: data.status,
     hostId: data.hostId,
     players: Object.entries(data)
-      .filter(([key]) => key.startsWith("player:"))
-      .map(([_, val]) => val as Player),
+      .filter(([key]) => key.startsWith("player: "))
+      .map(([key, val]) => {
+        const playerData = val as Player;
+        const playerId = key.replace("player: ", "");
+
+        return {
+          ...playerData,
+          id: playerId,
+          isHost: playerId === data.hostId,
+        };
+    }),
   };
 
   return { room, userId };
