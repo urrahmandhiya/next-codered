@@ -27,7 +27,7 @@ export default function Page() {
     const [players, setPlayers] = useState<Player[]>([]);
     const [numPlayersInRoom, setNumPlayersInRoom] = useState(0)
 
-    async function getPlayersInRoom(roomCode: string) {
+    async function updateRoomState(roomCode: string) {
         const { room } = await getRoomState(roomCode);
         console.log(room)
         if (!room) {
@@ -36,14 +36,14 @@ export default function Page() {
 
         const playersInRoom = room.players;
 
-        setNumPlayersInRoom(room.players.length);
         setPlayers(playersInRoom);
+        setNumPlayersInRoom(room.currentPlayer);
     };
 
     useEffect(() => {
         async function fetchRoom() {
             try {
-                getPlayersInRoom(roomCode)
+                updateRoomState(roomCode)
             } catch (error) {
                 console.log(error)
             }
@@ -54,7 +54,7 @@ export default function Page() {
     return (
         <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
             <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black">
-                <Button variant="outline" onClick={() => getPlayersInRoom(roomCode)}><RefreshCw /></Button>
+                <Button variant="outline" onClick={() => updateRoomState(roomCode)}><RefreshCw /></Button>
                 <Tabs defaultValue="overview" className="min-w-64">
                     <TabsList>
                         <TabsTrigger value="overview">Players {`[${numPlayersInRoom}/${MAX_NUMBER_OF_PLAYERS}]`}</TabsTrigger>

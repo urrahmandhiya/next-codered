@@ -8,7 +8,7 @@ const redis = Redis.fromEnv();
 
 export async function createRoom(formData: FormData) {
   const hostId = crypto.randomUUID();
-  // generate random 4-characterstring (DCAV)
+  // generate random 4-characterstring (e.g., ABCD)
   const roomCode = Math.random().toString(36).substring(2, 6).toUpperCase();
   const playerStats = {
     name: "PLAYER_1",
@@ -18,9 +18,14 @@ export async function createRoom(formData: FormData) {
     status: "waiting",
     hostId: hostId,
     [`player: ${hostId}`]: JSON.stringify(playerStats),
+    maxPlayer: 4,
+    currentPlayer: 0,
   };
 
-  await redis.hset(`room:${roomCode}`, initialRoomState);
+  const pipeline = redis.pipeline();
+  pipeline.hset(`room:${roomCode}`, initialRoomState);
+  pipeline.hincrby(`room:${roomCode}`, "currentPlayer", 1);
+  await pipeline.exec();
 
   (await cookies()).set("user_id", hostId, {
     httpOnly: true,
@@ -35,13 +40,22 @@ export interface Room {
   status: string;
   hostId: string;
   players: Player[];
+  maxPlayer: number;
+  currentPlayer: number;
 }
 
-type RedisRoom = {
-  status: string;
+type RoomMetaData = {
+  status: string; // implement enums later
   hostId: string;
+  maxPlayer: number;
+  currentPlayer: number;
+};
+
+type DynamicPlayers = {
   [key: string]: string | Player;
 };
+
+type RedisRoom = RoomMetaData & DynamicPlayers;
 
 export interface Player {
   id: string;
@@ -65,7 +79,7 @@ export async function getRoomState(
     players: Object.entries(data)
       .filter(([key]) => key.startsWith("player: "))
       .map(([key, val]) => {
-        const playerData = val as Player;
+        const playerData = val as Player; // redis return Object
         const playerId = key.replace("player: ", "");
 
         return {
@@ -73,7 +87,9 @@ export async function getRoomState(
           id: playerId,
           isHost: playerId === data.hostId,
         };
-    }),
+      }),
+    maxPlayer: data.maxPlayer,
+    currentPlayer: data.currentPlayer,
   };
 
   return { room, userId };
