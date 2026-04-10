@@ -24,7 +24,6 @@ export default function WaitingRoom() {
 
     async function updateRoomState(roomCode: string) {
         const { room } = await getRoomState(roomCode);
-        console.log(room)
         if (!room) {
             throw new Error('room not found');
         }

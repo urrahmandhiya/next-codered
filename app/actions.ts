@@ -19,13 +19,10 @@ export async function createRoom(formData: FormData) {
     hostId: hostId,
     [`player: ${hostId}`]: JSON.stringify(playerStats),
     maxPlayer: 4,
-    currentPlayer: 0,
+    currentPlayer: 1,
   };
 
-  const pipeline = redis.pipeline();
-  pipeline.hset(`room:${roomCode}`, initialRoomState);
-  pipeline.hincrby(`room:${roomCode}`, "currentPlayer", 1);
-  await pipeline.exec();
+  await redis.hset(`room:${roomCode}`, initialRoomState);
 
   (await cookies()).set("user_id", hostId, {
     httpOnly: true,
@@ -33,7 +30,47 @@ export async function createRoom(formData: FormData) {
     sameSite: "lax",
   });
 
-  redirect(`room/${roomCode}`);
+  redirect(`/room/${roomCode}`);
+}
+
+export async function joinRoom(formData: FormData) {
+  const userId = crypto.randomUUID();
+  const roomCode = formData.get("room");
+  const key = `room:${roomCode}`;
+
+  // lua script
+  const script = `
+    local roomCode = KEYS[1]
+    local userId = ARGV[1]
+
+    local roomMetaData = redis.call('HMGET', roomCode, 'currentPlayer', 'maxPlayer')
+    local currentPlayer = tonumber(roomMetaData[1])
+    local maxPlayer = tonumber(roomMetaData[2])
+
+    if currentPlayer and maxPlayer and currentPlayer < maxPlayer then
+      local newCurrentPlayer = currentPlayer + 1
+      local playerName = "PLAYER_" .. newCurrentPlayer
+      local initialPlayerState = cjson.encode({ name = playerName })
+      redis.call('HSET', roomCode, 'currentPlayer', newCurrentPlayer, 'player: ' .. userId, initialPlayerState)
+      return newCurrentPlayer
+    else
+      return 'ROOM_FULL'
+    end
+  `;
+
+  const result = await redis.eval(script, [key], [userId]);
+
+  if (result === "ROOM_FULL") {
+    throw new Error("room is full");
+  }
+
+  (await cookies()).set("user_id", userId, {
+    httpOnly: true,
+    path: "/",
+    sameSite: "lax",
+  });
+
+  redirect(`/room/${roomCode}`);
 }
 
 export interface Room {

@@ -1,3 +1,4 @@
+import { joinRoom } from "@/app/actions";
 import { Button } from "../ui/button";
 import { Card, CardContent } from "../ui/card";
 import { Field, FieldLabel } from "../ui/field";
@@ -8,10 +9,7 @@ export default function JoinRoomForm({ onBack }: { onBack: () => void }) {
         <>
             <Card>
                 <CardContent className="text-xs text-center">
-                    <form onSubmit={(e) => {
-                        e.preventDefault();
-                        alert("not yet");
-                    }}>
+                    <form action={joinRoom}>
                         <Field>
                             <FieldLabel htmlFor="room-input">
                                 Room Code
@@ -19,6 +17,7 @@ export default function JoinRoomForm({ onBack }: { onBack: () => void }) {
                             <Input
                                 className="text-xs"
                                 id="room-input"
+                                name="room"
                                 type="text"
                                 placeholder="Enter Room Code"
                             />
