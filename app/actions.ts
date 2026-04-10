@@ -6,9 +6,17 @@ import { cookies } from "next/headers";
 
 const redis = Redis.fromEnv();
 
-export async function createRoom(formData: FormData) {
+interface IActionState {
+  success: string | null;
+  error: string | null;
+}
+
+export async function createRoom(
+  prevState: IActionState,
+  formData: FormData,
+): Promise<IActionState> {
   const hostId = crypto.randomUUID();
-  // generate random 4-characterstring (e.g., ABCD)
+  // generate random 4-characterstring (e.g., ABCD) - still prone to collision
   const roomCode = Math.random().toString(36).substring(2, 6).toUpperCase();
   const playerStats = {
     name: "PLAYER_1",
@@ -22,14 +30,18 @@ export async function createRoom(formData: FormData) {
     currentPlayer: 1,
   };
 
-  await redis.hset(`room:${roomCode}`, initialRoomState);
+  try {
+    await redis.hset(`room:${roomCode}`, initialRoomState);
 
-  (await cookies()).set("user_id", hostId, {
-    httpOnly: true,
-    path: "/",
-    sameSite: "lax",
-  });
-
+    (await cookies()).set("user_id", hostId, {
+      httpOnly: true,
+      path: "/",
+      sameSite: "lax",
+    });
+  } catch (error: unknown) {
+    const e = error as Error;
+    return { success: null, error: e.message };
+  }
   redirect(`/room/${roomCode}`);
 }
 

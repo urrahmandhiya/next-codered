@@ -1,6 +1,10 @@
+"use client"
+
 import { createRoom } from "@/app/actions";
 import { Button } from "../ui/button";
 import { Card, CardContent } from "../ui/card";
+import { useActionState } from "react";
+import { Spinner } from "../ui/spinner";
 
 const HOME_DESCRIPTION = `
   Removing physical boundaries. 
@@ -11,6 +15,8 @@ const HOME_DESCRIPTION = `
 `
 
 export default function RoomActions({ onJoinRoom }: { onJoinRoom: () => void }) {
+    const [state, formAction, isPending] = useActionState(createRoom, { success: null, error: null })
+    console.log("state", state)
     return (
         <>
             <Card>
@@ -19,8 +25,10 @@ export default function RoomActions({ onJoinRoom }: { onJoinRoom: () => void }) 
                 </CardContent>
             </Card>
             <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-                <form action={createRoom}>
-                    <Button variant="outline" type="submit">Create Room</Button>
+                <form action={formAction}>
+                    <Button className="flex items-center justify-center w-full" variant="outline" type="submit" disabled={isPending}>
+                        {isPending ? <Spinner /> : "Create Room"}
+                    </Button>
                 </form>
                 <Button variant="outline" onClick={onJoinRoom}>Join Room</Button>
             </div>
