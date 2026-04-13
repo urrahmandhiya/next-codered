@@ -46,7 +46,10 @@ export async function createRoom(
   redirect(`/room/${roomCode}`);
 }
 
-export async function joinRoom(formData: FormData) {
+export async function joinRoom(
+  prevState: IActionState,
+  formData: FormData,
+): Promise<IActionState> {
   const userId = crypto.randomUUID();
   const roomCode = formData.get("room");
   const unixTimeStamp = Date.now();
@@ -58,6 +61,12 @@ export async function joinRoom(formData: FormData) {
     local userId = ARGV[1]
     local unixTimeStamp = ARGV[2]
 
+    local isKeyExist = redis.call('HEXISTS', roomCode, 'currentPlayer')
+
+    if isKeyExist == 0 then
+      return 'ROOM_NOT_FOUND'
+    end
+    
     local roomMetaData = redis.call('HMGET', roomCode, 'currentPlayer', 'maxPlayer')
     local currentPlayer = tonumber(roomMetaData[1])
     local maxPlayer = tonumber(roomMetaData[2])
@@ -73,17 +82,29 @@ export async function joinRoom(formData: FormData) {
     end
   `;
 
-  const result = await redis.eval(script, [key], [userId, unixTimeStamp]);
+  try {
+    const result = await redis.eval(script, [key], [userId, unixTimeStamp]);
 
-  if (result === "ROOM_FULL") {
-    throw new Error("room is full");
+    switch (result) {
+      case "ROOM_FULL":
+        throw new Error(`Room ${roomCode} is full.`);  
+        
+      case "ROOM_NOT_FOUND":
+        throw new Error(`Room ${roomCode} is not found.`);  
+      
+      default:
+        break;
+    }
+
+    (await cookies()).set("user_id", userId, {
+      httpOnly: true,
+      path: "/",
+      sameSite: "lax",
+    });
+  } catch (error: unknown) {
+    const e = error as Error;
+    return { success: null, error: e.message };
   }
-
-  (await cookies()).set("user_id", userId, {
-    httpOnly: true,
-    path: "/",
-    sameSite: "lax",
-  });
 
   redirect(`/room/${roomCode}`);
 }

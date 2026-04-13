@@ -1,15 +1,29 @@
+"use client"
+
 import { joinRoom } from "@/app/actions";
 import { Button } from "../ui/button";
 import { Card, CardContent } from "../ui/card";
 import { Field, FieldLabel } from "../ui/field";
 import { Input } from "../ui/input";
+import { useActionState } from "react";
+import { Spinner } from "../ui/spinner";
+import { Alert, AlertTitle } from "../ui/alert";
+import { AlertCircleIcon } from "lucide-react";
 
 export default function JoinRoomForm({ onBack }: { onBack: () => void }) {
+    const [state, formAction, isPending] = useActionState(joinRoom, { success: null, error: null })
+    console.log(state);
     return (
         <>
             <Card>
-                <CardContent className="text-xs text-center">
-                    <form action={joinRoom}>
+                <CardContent className="text-xs text-center flex flex-col gap-6">
+                    {state.error !== null &&
+                        <Alert className="max-w-md" variant="destructive">
+                            <AlertCircleIcon />
+                            <AlertTitle>{state.error}</AlertTitle>
+                        </Alert>
+                    }
+                    <form action={formAction}>
                         <Field>
                             <FieldLabel htmlFor="room-input">
                                 Room Code
@@ -21,7 +35,9 @@ export default function JoinRoomForm({ onBack }: { onBack: () => void }) {
                                 type="text"
                                 placeholder="Enter Room Code"
                             />
-                            <Button variant="outline" type="submit">Submit</Button>
+                            <Button variant="outline" type="submit" disabled={isPending}>
+                                {isPending ? <Spinner /> : "Submit"}
+                            </Button>
                         </Field>
                     </form>
                 </CardContent>
