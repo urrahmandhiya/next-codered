@@ -4,7 +4,7 @@ import { ItemGroup, Item, ItemContent, ItemTitle } from "../ui/item";
 import { Player } from "@/app/actions";
 
 export default function PlayerList({players}: {players: Player[]}) {
-    const descendingPlayers = [...players].sort((a, b) => a.createdAt - b.createdAt);
+    const descendingPlayers = [...(players ?? [])].sort((a, b) => a.createdAt - b.createdAt);
     return(
         <Card>
             <CardContent className="text-sm text-muted-foreground">

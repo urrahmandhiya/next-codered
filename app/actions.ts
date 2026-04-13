@@ -151,7 +151,7 @@ export async function getRoomState(
     return { room: null, userId };
   }
 
-  const room: Room = {
+  const room = {
     status: data.status,
     hostId: data.hostId,
     players: Object.entries(data)
