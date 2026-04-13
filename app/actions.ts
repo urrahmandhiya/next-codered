@@ -20,6 +20,7 @@ export async function createRoom(
   const roomCode = Math.random().toString(36).substring(2, 6).toUpperCase();
   const playerStats = {
     name: "PLAYER_1",
+    createdAt: Date.now(),
   };
 
   const initialRoomState = {
@@ -48,12 +49,14 @@ export async function createRoom(
 export async function joinRoom(formData: FormData) {
   const userId = crypto.randomUUID();
   const roomCode = formData.get("room");
+  const unixTimeStamp = Date.now();
   const key = `room:${roomCode}`;
 
   // lua script
   const script = `
     local roomCode = KEYS[1]
     local userId = ARGV[1]
+    local unixTimeStamp = ARGV[2]
 
     local roomMetaData = redis.call('HMGET', roomCode, 'currentPlayer', 'maxPlayer')
     local currentPlayer = tonumber(roomMetaData[1])
@@ -62,7 +65,7 @@ export async function joinRoom(formData: FormData) {
     if currentPlayer and maxPlayer and currentPlayer < maxPlayer then
       local newCurrentPlayer = currentPlayer + 1
       local playerName = "PLAYER_" .. newCurrentPlayer
-      local initialPlayerState = cjson.encode({ name = playerName })
+      local initialPlayerState = cjson.encode({ name = playerName, createdAt = tonumber(unixTimeStamp) })
       redis.call('HSET', roomCode, 'currentPlayer', newCurrentPlayer, 'player: ' .. userId, initialPlayerState)
       return newCurrentPlayer
     else
@@ -70,7 +73,7 @@ export async function joinRoom(formData: FormData) {
     end
   `;
 
-  const result = await redis.eval(script, [key], [userId]);
+  const result = await redis.eval(script, [key], [userId, unixTimeStamp]);
 
   if (result === "ROOM_FULL") {
     throw new Error("room is full");
@@ -110,6 +113,7 @@ export interface Player {
   id: string;
   name: string;
   isHost: boolean;
+  createdAt: number;
 }
 
 export async function getRoomState(
