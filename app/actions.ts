@@ -40,8 +40,10 @@ export async function createRoom(
       sameSite: "lax",
     });
   } catch (error: unknown) {
-    const e = error as Error;
-    return { success: null, error: e.message };
+    if (error instanceof Error) {
+      return { success: null, error: error.message };
+    }
+    return { success: null, error: String(error) };
   }
   redirect(`/room/${roomCode}`);
 }
@@ -87,11 +89,11 @@ export async function joinRoom(
 
     switch (result) {
       case "ROOM_FULL":
-        throw new Error(`Room ${roomCode} is full.`);  
-        
+        throw new Error(`Room ${roomCode} is full.`);
+
       case "ROOM_NOT_FOUND":
-        throw new Error(`Room ${roomCode} is not found.`);  
-      
+        throw new Error(`Room ${roomCode} is not found.`);
+
       default:
         break;
     }
@@ -102,8 +104,10 @@ export async function joinRoom(
       sameSite: "lax",
     });
   } catch (error: unknown) {
-    const e = error as Error;
-    return { success: null, error: e.message };
+    if (error instanceof Error) {
+      return { success: null, error: error.message };
+    }
+    return { success: null, error: String(error) };
   }
 
   redirect(`/room/${roomCode}`);
