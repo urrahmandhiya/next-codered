@@ -1,0 +1,38 @@
+'use client'
+
+import { getRoomState, Player } from "@/app/actions";
+import { useParams } from "next/navigation";
+import UpdateButton from "./update-button";
+import useSWR from "swr";
+import WaitingRoom from "./waiting-room";
+
+async function updateRoomState(roomCode: string) {
+    const { room } = await getRoomState(roomCode);
+    if (!room) {
+        throw new Error('room not found');
+    }
+    console.log("FETCHING....")
+    return room;
+};
+
+export default function RoomManager() {
+    const roomCode = String(useParams().roomcode);
+    const isDev = process.env.NEXT_PUBLIC_MODE === "DEV";
+
+    const { data: room, error, isLoading, mutate } = useSWR(roomCode, updateRoomState, {
+        refreshInterval: isDev ? 0 : 5000,
+        revalidateOnFocus: false,
+        revalidateOnReconnect: false,
+        revalidateIfStale: false,
+    });
+
+    const players = room?.players as Player[];
+    const currentPlayers = room?.currentPlayer || 0;
+
+    return (
+        <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black">
+            {isDev && <UpdateButton onUpdate={() => mutate()} />}
+            <WaitingRoom players={players} currentPlayers={currentPlayers} isLoading={isLoading}/>
+        </main>
+    );
+}
