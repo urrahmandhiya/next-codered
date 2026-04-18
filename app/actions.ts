@@ -5,6 +5,8 @@ import { redirect } from "next/navigation";
 import { cookies } from "next/headers";
 
 const redis = Redis.fromEnv();
+const MAX_NUMBER_OF_PLAYERS = 4;
+const MINIMAL_CURRENTPLAYERS = 3;
 
 interface IActionState {
   success: string | null;
@@ -27,7 +29,7 @@ export async function createRoom(
     status: "waiting",
     hostId: hostId,
     [`player: ${hostId}`]: JSON.stringify(playerStats),
-    maxPlayer: 4,
+    maxPlayer: MAX_NUMBER_OF_PLAYERS,
     currentPlayer: 1,
   };
 
@@ -171,4 +173,51 @@ export async function getRoomState(
   };
 
   return { room, userId };
+}
+
+type actionResponse =
+  | { success: null; error: string }
+  | { success: string; error: null };
+
+export async function startGame(roomCode: string): Promise<actionResponse> {
+  const key = `room:${roomCode}`;
+  const script = `
+    local roomCode = KEYS[1]
+    local MINIMAL_CURRENTPLAYERS = ARGV[1]
+
+    local roomMetaData = redis.call('HGET', roomCode, 'currentPlayer')
+    
+    local currentPlayer = tonumber(roomMetaData)
+    local minimumPlayers = tonumber(MINIMAL_CURRENTPLAYERS)
+
+    if currentPlayer >= minimumPlayers then
+      local currentStatus = 'playing'
+      redis.call('HSET', roomCode, 'status', currentStatus)
+      return currentStatus
+    else
+      return 'INSUFFICIENT_PLAYERS'
+    end
+  `;
+
+  try {
+    const result = await redis.eval(script, [key], [MINIMAL_CURRENTPLAYERS]);
+
+    if (result === "INSUFFICIENT_PLAYERS") {
+      throw new Error(
+        `Insufficient players. minimal number of players to start the game is ${MINIMAL_CURRENTPLAYERS}`,
+      );
+    }
+    return { success: String(result), error: null };
+  } catch (error) {
+    if (error instanceof Error) {
+      return { success: null, error: error.message };
+    } else {
+      return { success: null, error: String(error) };
+    }
+  }
+}
+
+export async function getPlayerCookies() {
+  const userCookies = (await cookies()).get("user_id");
+  return userCookies;
 }
