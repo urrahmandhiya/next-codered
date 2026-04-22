@@ -1,7 +1,7 @@
 import { Badge } from "../ui/badge";
 import { Card, CardContent } from "../ui/card";
 import { ItemGroup, Item, ItemContent, ItemTitle } from "../ui/item";
-import { Player } from "@/app/actions";
+import { Player } from "@/lib/actions";
 
 export default function PlayerList({players}: {players: Player[]}) {
     const descendingPlayers = [...(players ?? [])].sort((a, b) => a.createdAt - b.createdAt);

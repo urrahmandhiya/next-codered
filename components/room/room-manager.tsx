@@ -1,6 +1,6 @@
 'use client'
 
-import { getRoomState, Player } from "@/app/actions";
+import { getRoomState, Player } from "@/lib/actions";
 import { useParams } from "next/navigation";
 import UpdateButton from "./update-button";
 import useSWR from "swr";

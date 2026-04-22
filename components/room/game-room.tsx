@@ -1,4 +1,4 @@
-import { getPlayerCookies, Player } from "@/app/actions";
+import { getPlayerCookies, Player } from "@/lib/actions";
 import { Card, CardContent } from "../ui/card";
 import { useEffect, useState } from "react";
 import { RequestCookie } from "next/dist/compiled/@edge-runtime/cookies";
