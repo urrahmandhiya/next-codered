@@ -1,6 +1,6 @@
 "use client"
 
-import { createRoom } from "@/app/actions";
+import { createRoom } from "@/lib/actions";
 import { Button } from "../ui/button";
 import { Card, CardContent } from "../ui/card";
 import { useActionState } from "react";
@@ -16,9 +16,8 @@ const HOME_DESCRIPTION = `
 
 export default function RoomActions({ onJoinRoom }: { onJoinRoom: () => void }) {
     const [state, formAction, isPending] = useActionState(createRoom, { success: null, error: null })
-    console.log("state", state)
     return (
-        <>
+        <main>
             <Card>
                 <CardContent className="text-xs text-center">
                     {HOME_DESCRIPTION}
@@ -32,6 +31,6 @@ export default function RoomActions({ onJoinRoom }: { onJoinRoom: () => void }) 
                 </form>
                 <Button variant="outline" onClick={onJoinRoom}>Join Room</Button>
             </div>
-        </>
+        </main>
     );
 }

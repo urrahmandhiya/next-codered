@@ -1,7 +1,8 @@
-import { getPlayerCookies, Player } from "@/lib/actions";
+import { getPlayerCookies } from "@/lib/actions";
 import { Card, CardContent } from "../ui/card";
 import { useEffect, useState } from "react";
 import { RequestCookie } from "next/dist/compiled/@edge-runtime/cookies";
+import { Player } from "@/lib/definitions";
 
 
 export default function GameRoom({players}: {players: Player[]}) {

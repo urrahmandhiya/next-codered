@@ -3,20 +3,13 @@
 import { Redis } from "@upstash/redis";
 import { redirect } from "next/navigation";
 import { cookies } from "next/headers";
+import { ActionState, Player, RedisRoom, Room } from "./definitions";
 
 const redis = Redis.fromEnv();
 const MAX_NUMBER_OF_PLAYERS = 4;
 const MINIMAL_CURRENTPLAYERS = 3;
 
-interface IActionState {
-  success: string | null;
-  error: string | null;
-}
-
-export async function createRoom(
-  prevState: IActionState,
-  formData: FormData,
-): Promise<IActionState> {
+export async function createRoom(prevState: ActionState, formData: FormData): Promise<ActionState> {
   const hostId = crypto.randomUUID();
   // generate random 4-characterstring (e.g., ABCD) - still prone to collision
   const roomCode = Math.random().toString(36).substring(2, 6).toUpperCase();
@@ -50,10 +43,7 @@ export async function createRoom(
   redirect(`/room/${roomCode}`);
 }
 
-export async function joinRoom(
-  prevState: IActionState,
-  formData: FormData,
-): Promise<IActionState> {
+export async function joinRoom(prevState: ActionState, formData: FormData,): Promise<ActionState> {
   const userId = crypto.randomUUID();
   const roomCode = formData.get("room");
   const unixTimeStamp = Date.now();
@@ -115,37 +105,7 @@ export async function joinRoom(
   redirect(`/room/${roomCode}`);
 }
 
-export interface Room {
-  status: string;
-  hostId: string;
-  players: Player[];
-  maxPlayer: number;
-  currentPlayer: number;
-}
-
-type RoomMetaData = {
-  status: string; // implement enums later
-  hostId: string;
-  maxPlayer: number;
-  currentPlayer: number;
-};
-
-type DynamicPlayers = {
-  [key: string]: string | Player;
-};
-
-type RedisRoom = RoomMetaData & DynamicPlayers;
-
-export interface Player {
-  id: string;
-  name: string;
-  isHost: boolean;
-  createdAt: number;
-}
-
-export async function getRoomState(
-  roomCode: string,
-): Promise<{ room: Room | null; userId: string | undefined }> {
+export async function getRoomState(roomCode: string): Promise<{ room: Room | null; userId: string | undefined }> {
   const userId = (await cookies()).get("user_id")?.value;
   const data = await redis.hgetall<RedisRoom>(`room:${roomCode}`);
 

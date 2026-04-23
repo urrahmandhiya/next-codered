@@ -11,12 +11,13 @@ import {
 import PlayerList from "./player-list";
 import { Skeleton } from "../ui/skeleton";
 import { Card, CardContent } from "../ui/card";
-import { Player, startGame } from "@/lib/actions";
+import { startGame } from "@/lib/actions";
 import RoomSettings from "./room-settings";
 import { useState, useTransition } from "react";
 import { Spinner } from "../ui/spinner";
 import { Alert, AlertTitle } from "../ui/alert";
 import { AlertCircleIcon } from "lucide-react";
+import { Player } from "@/lib/definitions";
 
 export default function WaitingRoom({
     currentPlayers,

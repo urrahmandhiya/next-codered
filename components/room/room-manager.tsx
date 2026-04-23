@@ -1,11 +1,12 @@
 'use client'
 
-import { getRoomState, Player } from "@/lib/actions";
+import { getRoomState } from "@/lib/actions";
 import { useParams } from "next/navigation";
 import UpdateButton from "./update-button";
 import useSWR from "swr";
 import WaitingRoom from "./waiting-room";
 import GameRoom from "./game-room";
+import { Player } from "@/lib/definitions";
 
 async function updateRoomState(roomCode: string) {
     const { room } = await getRoomState(roomCode);
