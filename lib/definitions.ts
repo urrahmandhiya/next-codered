@@ -1,7 +1,11 @@
-export interface ActionState {
-    success: string | null;
-    error: string | null;
+export interface RedirectActionState {
+    error?: string | null;
+    message?: string | null;
 }
+
+export type ActionResponse =
+    | { success: null; error: string }
+    | { success: string; error: null };
 
 export interface Room {
   status: string;
@@ -30,7 +34,3 @@ export type DynamicPlayers = {
 };
 
 export type RedisRoom = RoomMetaData & DynamicPlayers;
-
-export type actionResponse =
-    | { success: null; error: string }
-    | { success: string; error: null };

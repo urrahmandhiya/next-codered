@@ -3,13 +3,13 @@
 import { Redis } from "@upstash/redis";
 import { redirect } from "next/navigation";
 import { cookies } from "next/headers";
-import { ActionState, Player, RedisRoom, Room } from "./definitions";
+import { ActionResponse, RedirectActionState, Player, RedisRoom, Room } from "./definitions";
 
 const redis = Redis.fromEnv();
 const MAX_NUMBER_OF_PLAYERS = 4;
 const MINIMAL_CURRENTPLAYERS = 3;
 
-export async function createRoom(prevState: ActionState, formData: FormData): Promise<ActionState> {
+export async function createRoom(_prevState: RedirectActionState): Promise<RedirectActionState> {
   const hostId = crypto.randomUUID();
   // generate random 4-characterstring (e.g., ABCD) - still prone to collision
   const roomCode = Math.random().toString(36).substring(2, 6).toUpperCase();
@@ -36,14 +36,14 @@ export async function createRoom(prevState: ActionState, formData: FormData): Pr
     });
   } catch (error: unknown) {
     if (error instanceof Error) {
-      return { success: null, error: error.message };
+      return { message: error.message, error: error.stack };
     }
-    return { success: null, error: String(error) };
+    return { error: String(error) };
   }
   redirect(`/room/${roomCode}`);
 }
 
-export async function joinRoom(prevState: ActionState, formData: FormData,): Promise<ActionState> {
+export async function joinRoom(prevState: RedirectActionState, formData: FormData,): Promise<RedirectActionState> {
   const userId = crypto.randomUUID();
   const roomCode = formData.get("room");
   const unixTimeStamp = Date.now();
@@ -97,9 +97,9 @@ export async function joinRoom(prevState: ActionState, formData: FormData,): Pro
     });
   } catch (error: unknown) {
     if (error instanceof Error) {
-      return { success: null, error: error.message };
+      return { message: error.message, error: error.stack };
     }
-    return { success: null, error: String(error) };
+    return { error: String(error) };
   }
 
   redirect(`/room/${roomCode}`);
@@ -135,11 +135,7 @@ export async function getRoomState(roomCode: string): Promise<{ room: Room | nul
   return { room, userId };
 }
 
-type actionResponse =
-  | { success: null; error: string }
-  | { success: string; error: null };
-
-export async function startGame(roomCode: string): Promise<actionResponse> {
+export async function startGame(roomCode: string): Promise<ActionResponse> {
   const key = `room:${roomCode}`;
   const script = `
     local roomCode = KEYS[1]

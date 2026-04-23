@@ -11,8 +11,8 @@ import { Alert, AlertTitle } from "../ui/alert";
 import { AlertCircleIcon } from "lucide-react";
 
 export default function JoinRoomForm({ onBack }: { onBack: () => void }) {
-    const [state, formAction, isPending] = useActionState(joinRoom, { success: null, error: null })
-    console.log(state);
+    const [state, formAction, isPending] = useActionState(joinRoom, { message: null, error: null })
+    if (state.error || state.message) console.log(state);
     return (
         <>
             <Card>

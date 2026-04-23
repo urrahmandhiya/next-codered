@@ -3,7 +3,7 @@
 import { createRoom } from "@/lib/actions";
 import { Button } from "../ui/button";
 import { Card, CardContent } from "../ui/card";
-import { useActionState } from "react";
+import { startTransition, useActionState } from "react";
 import { Spinner } from "../ui/spinner";
 
 const HOME_DESCRIPTION = `
@@ -15,22 +15,21 @@ const HOME_DESCRIPTION = `
 `
 
 export default function RoomActions({ onJoinRoom }: { onJoinRoom: () => void }) {
-    const [state, formAction, isPending] = useActionState(createRoom, { success: null, error: null })
+    const [state, formAction, isPending] = useActionState(createRoom, { message: null, error: null })
+    if (state.error || state.message) console.log(state);
     return (
-        <main>
+        <>
             <Card>
                 <CardContent className="text-xs text-center">
                     {HOME_DESCRIPTION}
                 </CardContent>
             </Card>
             <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-                <form action={formAction}>
-                    <Button className="flex items-center justify-center w-full" variant="outline" type="submit" disabled={isPending}>
-                        {isPending ? <Spinner /> : "Create Room"}
-                    </Button>
-                </form>
+                <Button onClick={() => startTransition(() => formAction())} variant="outline" type="submit" disabled={isPending}>
+                    {isPending ? <Spinner /> : "Create Room"}
+                </Button>
                 <Button variant="outline" onClick={onJoinRoom}>Join Room</Button>
             </div>
-        </main>
+        </>
     );
 }

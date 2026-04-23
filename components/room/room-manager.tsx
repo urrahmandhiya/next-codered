@@ -28,6 +28,8 @@ export default function RoomManager() {
         revalidateIfStale: false,
     });
 
+    if (error) console.log(error);
+
     const players = room?.players as Player[];
     const currentPlayers = room?.currentPlayer || 0;
     const maxPlayers = room?.maxPlayer || 0;
