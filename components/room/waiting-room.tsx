@@ -18,41 +18,46 @@ import { Spinner } from "../ui/spinner";
 import { Alert, AlertTitle } from "../ui/alert";
 import { AlertCircleIcon } from "lucide-react";
 import { Player } from "@/lib/definitions";
+import UpdateButton from "./update-button";
+import { updateRoomState } from "@/lib/data";
+import useSWR from "swr";
+import { useUserCookies } from "./cookie-provider";
 
-export default function WaitingRoom({
-    currentPlayers,
-    maxPlayers,
-    players,
-    isLoading,
-    isValidating,
-    roomCode }: {
-        currentPlayers: number,
-        maxPlayers: number,
-        players: Player[],
-        isLoading: boolean,
-        isValidating: boolean,
-        roomCode: string,
-    }) {
+const isDev = process.env.NEXT_PUBLIC_MODE === "DEV";
+
+export default function WaitingRoom({ roomCode }: { roomCode: string }) {
     const [isPending, startTransition] = useTransition();
-    const [isStarting, setIsStarting] = useState(false);
     const [alertMessage, setAlertMessage] = useState("");
+    const [isStarting, setIsStarting] = useState(false);
 
-    if (alertMessage !== "" && isValidating) setAlertMessage("");
-    
+    const { data, isLoading, mutate } = useSWR(roomCode, updateRoomState, {
+        refreshInterval: isDev ? 0 : 5000,
+        revalidateOnFocus: false,
+        revalidateOnReconnect: false,
+        revalidateIfStale: false,
+    });
+
+    const userCookie = useUserCookies();
+
+    const currentPlayers = data?.currentPlayer || 0;
+    const maxPlayers = data?.maxPlayer || 0;
+    const players = data?.players as Player[];
+    const isHost = data?.hostId === userCookie;
+
     const handleStartGame = () => {
         startTransition(async () => {
             const result = await startGame(roomCode);
             if (result.error) {
                 setAlertMessage(result.error)
             } else {
-                setIsStarting(true)
+                setIsStarting(true);
             }
         })
     }
 
-    
     return (
         <>
+            {isDev && <UpdateButton onUpdate={() => mutate()} />}
             {alertMessage &&
                 <Alert className="max-w-md" variant="destructive">
                     <AlertCircleIcon />
@@ -65,7 +70,7 @@ export default function WaitingRoom({
                     <TabsTrigger value="room-settings">Room Settings</TabsTrigger>
                 </TabsList>
                 <TabsContent value="overview">
-                    {isLoading || isValidating
+                    {isLoading
                         ?
                         <Card className="w-full">
                             <CardContent>
@@ -80,14 +85,9 @@ export default function WaitingRoom({
                 </TabsContent>
             </Tabs>
             <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-                {isStarting 
-                ?
-                "Please Wait..."
-                :
-                <Button variant="outline" onClick={handleStartGame} disabled={isPending}>
-                    {isPending ? <Spinner /> : "Start Game"}
+                <Button variant="outline" onClick={handleStartGame} disabled={isPending || !isHost}>
+                    {isPending || isStarting ? <Spinner /> : "Start Game"}
                 </Button>
-                }
             </div>
         </>
     );
