@@ -12,7 +12,7 @@ import { AlertCircleIcon } from "lucide-react";
 
 export default function JoinRoomForm({ onBack }: { onBack: () => void }) {
     const [state, formAction, isPending] = useActionState(joinRoom, { message: null, error: null })
-    if (state.error || state.message) console.log(state);
+    if (state.message) console.log(state.message);
     return (
         <>
             <Card>
@@ -20,7 +20,7 @@ export default function JoinRoomForm({ onBack }: { onBack: () => void }) {
                     {state.error !== null &&
                         <Alert className="max-w-md" variant="destructive">
                             <AlertCircleIcon />
-                            <AlertTitle>{state.error}</AlertTitle>
+                            <AlertTitle>{state.message}</AlertTitle>
                         </Alert>
                     }
                     <form action={formAction}>

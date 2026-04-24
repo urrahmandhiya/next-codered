@@ -4,6 +4,7 @@ import { Redis } from "@upstash/redis";
 import { redirect } from "next/navigation";
 import { cookies } from "next/headers";
 import { ActionResponse, RedirectActionState, Player, RedisRoom, Room } from "./definitions";
+import { revalidatePath } from "next/cache";
 
 const redis = Redis.fromEnv();
 const MAX_NUMBER_OF_PLAYERS = 4;
@@ -102,6 +103,7 @@ export async function joinRoom(prevState: RedirectActionState, formData: FormDat
     return { error: String(error) };
   }
 
+  revalidatePath(`/room/${roomCode}`);
   redirect(`/room/${roomCode}`);
 }
 
@@ -171,9 +173,4 @@ export async function startGame(roomCode: string): Promise<ActionResponse> {
       return { success: null, error: String(error) };
     }
   }
-}
-
-export async function getPlayerCookies() {
-  const userCookies = (await cookies()).get("user_id");
-  return userCookies;
 }

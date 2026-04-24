@@ -16,7 +16,7 @@ const HOME_DESCRIPTION = `
 
 export default function RoomActions({ onJoinRoom }: { onJoinRoom: () => void }) {
     const [state, formAction, isPending] = useActionState(createRoom, { message: null, error: null })
-    if (state.error || state.message) console.log(state);
+    if (state.message) console.log(state.message);
     return (
         <>
             <Card>
