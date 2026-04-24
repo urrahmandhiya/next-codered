@@ -9,10 +9,12 @@ import { useActionState } from "react";
 import { Spinner } from "../ui/spinner";
 import { Alert, AlertTitle } from "../ui/alert";
 import { AlertCircleIcon } from "lucide-react";
+import UsernameInput from "./username-input";
 
 export default function JoinRoomForm({ onBack }: { onBack: () => void }) {
     const [state, formAction, isPending] = useActionState(joinRoom, { message: null, error: null })
     if (state.message) console.log(state.message);
+
     return (
         <>
             <Card>
@@ -25,6 +27,7 @@ export default function JoinRoomForm({ onBack }: { onBack: () => void }) {
                     }
                     <form action={formAction}>
                         <Field>
+                            <UsernameInput />
                             <FieldLabel htmlFor="room-input">
                                 Room Code
                             </FieldLabel>

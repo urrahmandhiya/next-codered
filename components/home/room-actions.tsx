@@ -1,10 +1,11 @@
 "use client"
 
-import { createRoom } from "@/lib/actions";
 import { Button } from "../ui/button";
 import { Card, CardContent } from "../ui/card";
-import { startTransition, useActionState } from "react";
+import { useActionState } from "react";
+import { createRoom } from "@/lib/actions";
 import { Spinner } from "../ui/spinner";
+import UsernameInput from "./username-input";
 
 const HOME_DESCRIPTION = `
   Removing physical boundaries. 
@@ -17,6 +18,7 @@ const HOME_DESCRIPTION = `
 export default function RoomActions({ onJoinRoom }: { onJoinRoom: () => void }) {
     const [state, formAction, isPending] = useActionState(createRoom, { message: null, error: null })
     if (state.message) console.log(state.message);
+
     return (
         <>
             <Card>
@@ -24,10 +26,13 @@ export default function RoomActions({ onJoinRoom }: { onJoinRoom: () => void }) 
                     {HOME_DESCRIPTION}
                 </CardContent>
             </Card>
-            <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-                <Button onClick={() => startTransition(() => formAction())} variant="outline" type="submit" disabled={isPending}>
-                    {isPending ? <Spinner /> : "Create Room"}
-                </Button>
+            <div className="flex flex-col gap-4 text-base">
+                <form action={formAction} className="flex flex-col gap-4">
+                    <UsernameInput />
+                    <Button variant="outline" type="submit" disabled={isPending}>
+                        {isPending ? <Spinner /> : "Create Room"}
+                    </Button>
+                </form>
                 <Button variant="outline" onClick={onJoinRoom}>Join Room</Button>
             </div>
         </>

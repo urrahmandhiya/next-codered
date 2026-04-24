@@ -10,19 +10,19 @@ const redis = Redis.fromEnv();
 const MAX_NUMBER_OF_PLAYERS = 4;
 const MINIMAL_CURRENTPLAYERS = 3;
 
-export async function createRoom(_prevState: RedirectActionState): Promise<RedirectActionState> {
+export async function createRoom(prevState: RedirectActionState, formData: FormData): Promise<RedirectActionState> {
   const hostId = crypto.randomUUID();
   // generate random 4-characterstring (e.g., ABCD) - still prone to collision
   const roomCode = Math.random().toString(36).substring(2, 6).toUpperCase();
   const playerStats = {
-    name: "PLAYER_1",
+    name: formData.get("username"),
     createdAt: Date.now(),
   };
 
   const initialRoomState = {
     status: "waiting",
     hostId: hostId,
-    [`player: ${hostId}`]: JSON.stringify(playerStats),
+    [`player:${hostId}`]: JSON.stringify(playerStats),
     maxPlayer: MAX_NUMBER_OF_PLAYERS,
     currentPlayer: 1,
   };
@@ -47,6 +47,7 @@ export async function createRoom(_prevState: RedirectActionState): Promise<Redir
 export async function joinRoom(prevState: RedirectActionState, formData: FormData,): Promise<RedirectActionState> {
   const userId = crypto.randomUUID();
   const roomCode = formData.get("room");
+  const username = formData.get("username")
   const unixTimeStamp = Date.now();
   const key = `room:${roomCode}`;
 
@@ -55,6 +56,7 @@ export async function joinRoom(prevState: RedirectActionState, formData: FormDat
     local roomCode = KEYS[1]
     local userId = ARGV[1]
     local unixTimeStamp = ARGV[2]
+    local username = ARGV[3]
 
     local isKeyExist = redis.call('HEXISTS', roomCode, 'currentPlayer')
 
@@ -68,9 +70,9 @@ export async function joinRoom(prevState: RedirectActionState, formData: FormDat
 
     if currentPlayer and maxPlayer and currentPlayer < maxPlayer then
       local newCurrentPlayer = currentPlayer + 1
-      local playerName = "PLAYER_" .. newCurrentPlayer
+      local playerName = username
       local initialPlayerState = cjson.encode({ name = playerName, createdAt = tonumber(unixTimeStamp) })
-      redis.call('HSET', roomCode, 'currentPlayer', newCurrentPlayer, 'player: ' .. userId, initialPlayerState)
+      redis.call('HSET', roomCode, 'currentPlayer', newCurrentPlayer, 'player:' .. userId, initialPlayerState)
       return newCurrentPlayer
     else
       return 'ROOM_FULL'
@@ -78,7 +80,7 @@ export async function joinRoom(prevState: RedirectActionState, formData: FormDat
   `;
 
   try {
-    const result = await redis.eval(script, [key], [userId, unixTimeStamp]);
+    const result = await redis.eval(script, [key], [userId, unixTimeStamp, username]);
 
     switch (result) {
       case "ROOM_FULL":
@@ -119,10 +121,10 @@ export async function getRoomState(roomCode: string): Promise<{ room: Room | nul
     status: data.status,
     hostId: data.hostId,
     players: Object.entries(data)
-      .filter(([key]) => key.startsWith("player: "))
+      .filter(([key]) => key.startsWith("player:"))
       .map(([key, val]) => {
         const playerData = val as Player; // redis already return as Object
-        const playerId = key.replace("player: ", "");
+        const playerId = key.replace("player:", "");
 
         return {
           ...playerData,
