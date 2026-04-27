@@ -85,7 +85,7 @@ export default function WaitingRoom({ roomCode }: { roomCode: string }) {
                 </TabsContent>
             </Tabs>
             <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-                <Button variant="outline" onClick={handleStartGame} disabled={isPending || !isHost}>
+                <Button variant="outline" onClick={handleStartGame} disabled={isPending || !isHost || isStarting}>
                     {isPending || isStarting ? <Spinner /> : "Start Game"}
                 </Button>
             </div>
