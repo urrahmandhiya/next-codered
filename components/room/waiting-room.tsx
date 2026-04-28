@@ -81,7 +81,7 @@ export default function WaitingRoom({ roomCode }: { roomCode: string }) {
                     }
                 </TabsContent>
                 <TabsContent value="room-settings">
-                    <RoomSettings />
+                    <RoomSettings roomCode={roomCode}/>
                 </TabsContent>
             </Tabs>
             <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">

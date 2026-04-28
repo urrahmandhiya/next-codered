@@ -1,62 +1,74 @@
-import { useState } from "react";
+"use client"
+
 import { Card, CardContent } from "../ui/card";
-import { Label } from "../ui/label";
 import { Slider } from "../ui/slider";
 import { Button } from "../ui/button";
-import { Item, ItemActions, ItemContent, ItemGroup, ItemTitle } from "../ui/item";
-import { PlusIcon } from "lucide-react";
+import z from "zod";
+import { Controller, useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { toast } from "sonner";
+import { Field, FieldGroup, FieldLabel } from "../ui/field";
+import { updateRoomSettings } from "@/lib/actions";
+import { useActionState } from "react";
 
-export default function RoomSettings() {
-    const [playerCapacity, SetPlayerCapacity] = useState(8);
+const formSchema = z.object({
+    playerCapacity: z
+        .number()
+        .min(4, "Player minimum 4")
+        .max(12, "Player maximum 12"),
+})
+
+export default function RoomSettings({ roomCode }: { roomCode: string }) {
+    const updateRoomSettingsWithRoomCode = updateRoomSettings.bind(null, roomCode);
+    const [state, formAction, isPending] = useActionState(updateRoomSettingsWithRoomCode, { message: "", error: null });
+
+    const form = useForm<z.infer<typeof formSchema>>({
+        resolver: zodResolver(formSchema),
+        defaultValues: {
+            playerCapacity: 8,
+        },
+    })
 
     return (
         <Card>
             <CardContent className="text-sm text-muted-foreground flex flex-col gap-4">
-                <div className="mx-auto grid w-full max-w-xs gap-3">
-                    <div className="flex items-center justify-between gap-2">
-                        <Label htmlFor="player-cap">Player capacity: {playerCapacity}</Label>
-                    </div>
-                    <Slider
-                        id="player-cap"
-                        value={playerCapacity}
-                        onValueChange={(num) => SetPlayerCapacity(num as number)}
-                        min={4}
-                        max={12}
-                        step={1}
-                    />
-                    {/* <div className="flex items-center justify-between gap-2">
-                        <ItemGroup>
-                            <Label htmlFor="role-config">Role configuration</Label>
-                            <Item variant="outline">
-                                <ItemContent>
-                                    <ItemTitle>
-                                        GOOD
-                                    </ItemTitle>
-                                </ItemContent>
-                                <ItemActions>
-                                    <Button variant="ghost">
-                                        <PlusIcon />
-                                    </Button>
-                                </ItemActions>
-                                [NUM]
-                            </Item>
-                            <Item variant="outline">
-                                <ItemContent>
-                                    <ItemTitle>
-                                        BAD
-                                    </ItemTitle>
-                                </ItemContent>
-                                <ItemActions>
-                                    <Button variant="ghost">
-                                        <PlusIcon />
-                                    </Button>
-                                </ItemActions>
-                                [NUM]
-                            </Item>
-                        </ItemGroup>
-                    </div> */}
-                </div>
-                <Button>Commit config</Button>
+                <form id="room-settings" action={formAction} className="flex flex-col gap-4">
+                    <FieldGroup className="mx-auto grid w-full max-w-xs gap-3">
+                        <Controller
+                            name="playerCapacity"
+                            control={form.control}
+                            render={({ field: { value, onChange } }) => (
+                                <Field>
+                                    <FieldLabel
+                                        className="flex items-center justify-between gap-2"
+                                        htmlFor="room-settings-player-cap"
+                                    >
+                                        Player capacity: {value}
+                                    </FieldLabel>
+                                    <Slider
+                                        name="player-cap"
+                                        id="room-settings-player-cap"
+                                        value={[value]}
+                                        onValueChange={onChange}
+                                        min={4}
+                                        max={12}
+                                        step={1}
+                                    />
+                                </Field>
+                            )}
+                        />
+                    </FieldGroup>
+                    <Button
+                        variant="outline"
+                        disabled={isPending}
+                        onClick={() => {
+                            toast(`${state.message}`, { position: "top-center", })
+                        }}
+                        type="submit"
+                    >
+                        Commit config
+                    </Button>
+                </form>
             </CardContent>
         </Card>
     );

@@ -1,6 +1,6 @@
-export interface RedirectActionState {
-    error?: string | null;
+export interface ActionState {
     message?: string | null;
+    error?: string | null;
 }
 
 export type ActionResponse =

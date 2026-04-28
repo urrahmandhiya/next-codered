@@ -3,14 +3,14 @@
 import { Redis } from "@upstash/redis";
 import { redirect } from "next/navigation";
 import { cookies } from "next/headers";
-import { ActionResponse, RedirectActionState, Player, RedisRoom, Room } from "./definitions";
+import { ActionResponse, ActionState, Player, RedisRoom, Room } from "./definitions";
 import { revalidatePath } from "next/cache";
 
 const redis = Redis.fromEnv();
-const MAX_NUMBER_OF_PLAYERS = 4;
-const MINIMAL_CURRENTPLAYERS = 3;
+const MAX_NUMBER_OF_PLAYERS = 8;
+const MINIMAL_CURRENTPLAYERS = 4;
 
-export async function createRoom(prevState: RedirectActionState, formData: FormData): Promise<RedirectActionState> {
+export async function createRoom(prevState: ActionState, formData: FormData): Promise<ActionState> {
   const hostId = crypto.randomUUID();
   // generate random 4-characterstring (e.g., ABCD) - still prone to collision
   const roomCode = Math.random().toString(36).substring(2, 6).toUpperCase();
@@ -35,16 +35,16 @@ export async function createRoom(prevState: RedirectActionState, formData: FormD
       path: "/",
       sameSite: "lax",
     });
-  } catch (error: unknown) {
+  } catch (error) {
     if (error instanceof Error) {
-      return { message: error.message, error: error.stack };
+      return { message: error.message };
     }
     return { error: String(error) };
   }
   redirect(`/room/${roomCode}`);
 }
 
-export async function joinRoom(prevState: RedirectActionState, formData: FormData,): Promise<RedirectActionState> {
+export async function joinRoom(prevState: ActionState, formData: FormData,): Promise<ActionState> {
   const userId = crypto.randomUUID();
   const roomCode = formData.get("room");
   const username = formData.get("username")
@@ -98,9 +98,9 @@ export async function joinRoom(prevState: RedirectActionState, formData: FormDat
       path: "/",
       sameSite: "lax",
     });
-  } catch (error: unknown) {
+  } catch (error) {
     if (error instanceof Error) {
-      return { message: error.message, error: error.stack };
+      return { message: error.message };
     }
     return { error: String(error) };
   }
@@ -173,6 +173,54 @@ export async function startGame(roomCode: string): Promise<ActionResponse> {
       return { success: null, error: error.message };
     } else {
       return { success: null, error: String(error) };
+    }
+  }
+}
+
+export async function updateRoomSettings(roomCode: string, prevState: ActionState, formData: FormData) {
+  const playerCapacity = formData.get("player-cap");
+  const key = `room:${roomCode}`;
+  const script = `
+    local roomCode = KEYS[1]
+    local playerCapacity = ARGV[1]
+    local newMaxPlayer = tonumber(playerCapacity)
+
+    local roomMetaData = redis.call('HMGET', roomCode, 'currentPlayer', 'status')
+
+    local currentPlayer = tonumber(roomMetaData[1])
+    local roomStatus = roomMetaData[2]
+
+    if roomStatus ~= "waiting" then
+      return "GAME_IS_STARTING"
+    end
+
+    if newMaxPlayer < currentPlayer then
+      return "PLAYER_IN_ROOM_EXCEEDS_NEW_CAPACITY"
+    end
+    
+    redis.call('HSET', roomCode, 'maxPlayer', newMaxPlayer)
+    return "SUCCESS"
+    `;
+
+  try {
+    const result = await redis.eval(script, [key], [playerCapacity])
+    switch (result) {
+      case "GAME_IS_STARTING":
+        throw new Error("Game is starting, unable to change room settings now")
+
+      case "PLAYER_IN_ROOM_EXCEEDS_NEW_CAPACITY":
+        throw new Error("Number of players in room exceeds new capacity")
+
+      default:
+        break;
+    }
+    revalidatePath(`/room/${roomCode}`)
+    return { error: null, message: "Room settings changed" }
+  } catch (error) {
+    if (error instanceof Error) {
+      return { message: error.message };
+    } else {
+      return { error: String(error) };
     }
   }
 }
