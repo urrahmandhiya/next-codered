@@ -19,20 +19,23 @@ const formSchema = z.object({
         .max(12, "Player maximum 12"),
 })
 
-export default function RoomSettings({ roomCode }: { roomCode: string }) {
+export default function RoomSettings({ currentPlayers, roomCode, onUpdate }: { currentPlayers: number, roomCode: string, onUpdate: () => void }) {
     const updateRoomSettingsWithRoomCode = updateRoomSettings.bind(null, roomCode);
     const [state, formAction, isPending] = useActionState(updateRoomSettingsWithRoomCode, { message: null, error: null });
 
     const form = useForm<z.infer<typeof formSchema>>({
         resolver: zodResolver(formSchema),
         defaultValues: {
-            playerCapacity: 8,
+            playerCapacity: currentPlayers,
         },
     })
 
     useEffect(() => {
         const handleToast = () => {
-            toast(state.message, { duration: 3000, position: "top-center" })
+            if (state.message) {
+                onUpdate();
+                toast(state.message, { duration: 3000, position: "top-center" });
+            }
         }
         handleToast();
     }, [state])

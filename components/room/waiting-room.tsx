@@ -37,12 +37,12 @@ export default function WaitingRoom({ roomCode }: { roomCode: string }) {
         revalidateIfStale: false,
     });
 
-    const userCookie = useUserCookies();
+    const userId = useUserCookies();
 
     const currentPlayers = data?.currentPlayer || 0;
     const maxPlayers = data?.maxPlayer || 0;
     const players = data?.players as Player[];
-    const isHost = data?.hostId === userCookie;
+    const isHost = data?.hostId === userId;
 
     const handleStartGame = () => {
         startTransition(async () => {
@@ -77,11 +77,11 @@ export default function WaitingRoom({ roomCode }: { roomCode: string }) {
                                 <Skeleton className="aspect-video w-full" />
                             </CardContent>
                         </Card>
-                        : <PlayerList players={players} />
+                        : <PlayerList players={players} isHost={isHost} />
                     }
                 </TabsContent>
                 <TabsContent value="room-settings">
-                    <RoomSettings roomCode={roomCode}/>
+                    <RoomSettings currentPlayers={currentPlayers} roomCode={roomCode} onUpdate={() => mutate()} />
                 </TabsContent>
             </Tabs>
             <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
