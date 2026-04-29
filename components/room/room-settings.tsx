@@ -9,7 +9,8 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { toast } from "sonner";
 import { Field, FieldGroup, FieldLabel } from "../ui/field";
 import { updateRoomSettings } from "@/lib/actions";
-import { useActionState } from "react";
+import { useActionState, useEffect } from "react";
+import { Spinner } from "../ui/spinner";
 
 const formSchema = z.object({
     playerCapacity: z
@@ -20,7 +21,7 @@ const formSchema = z.object({
 
 export default function RoomSettings({ roomCode }: { roomCode: string }) {
     const updateRoomSettingsWithRoomCode = updateRoomSettings.bind(null, roomCode);
-    const [state, formAction, isPending] = useActionState(updateRoomSettingsWithRoomCode, { message: "", error: null });
+    const [state, formAction, isPending] = useActionState(updateRoomSettingsWithRoomCode, { message: null, error: null });
 
     const form = useForm<z.infer<typeof formSchema>>({
         resolver: zodResolver(formSchema),
@@ -28,6 +29,13 @@ export default function RoomSettings({ roomCode }: { roomCode: string }) {
             playerCapacity: 8,
         },
     })
+
+    useEffect(() => {
+        const handleToast = () => {
+            toast(state.message, { duration: 3000, position: "top-center" })
+        }
+        handleToast();
+    }, [state])
 
     return (
         <Card>
@@ -58,15 +66,8 @@ export default function RoomSettings({ roomCode }: { roomCode: string }) {
                             )}
                         />
                     </FieldGroup>
-                    <Button
-                        variant="outline"
-                        disabled={isPending}
-                        onClick={() => {
-                            toast(`${state.message}`, { position: "top-center", })
-                        }}
-                        type="submit"
-                    >
-                        Commit config
+                    <Button variant="outline" disabled={isPending} type="submit">
+                        {isPending ? <Spinner /> : "Commit Config"}
                     </Button>
                 </form>
             </CardContent>

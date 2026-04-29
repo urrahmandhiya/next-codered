@@ -177,7 +177,7 @@ export async function startGame(roomCode: string): Promise<ActionResponse> {
   }
 }
 
-export async function updateRoomSettings(roomCode: string, prevState: ActionState, formData: FormData) {
+export async function updateRoomSettings(roomCode: string, prevState: ActionState, formData: FormData): Promise<ActionState> {
   const playerCapacity = formData.get("player-cap");
   const key = `room:${roomCode}`;
   const script = `
