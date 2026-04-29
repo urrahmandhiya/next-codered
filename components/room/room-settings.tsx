@@ -11,6 +11,7 @@ import { Field, FieldGroup, FieldLabel } from "../ui/field";
 import { updateRoomSettings } from "@/lib/actions";
 import { useActionState, useEffect } from "react";
 import { Spinner } from "../ui/spinner";
+import { mutate } from "swr";
 
 const formSchema = z.object({
     playerCapacity: z
@@ -19,26 +20,26 @@ const formSchema = z.object({
         .max(12, "Player maximum 12"),
 })
 
-export default function RoomSettings({ currentPlayers, roomCode, onUpdate }: { currentPlayers: number, roomCode: string, onUpdate: () => void }) {
+export default function RoomSettings({ maxPlayers, roomCode }: { maxPlayers: number, roomCode: string }) {
     const updateRoomSettingsWithRoomCode = updateRoomSettings.bind(null, roomCode);
     const [state, formAction, isPending] = useActionState(updateRoomSettingsWithRoomCode, { message: null, error: null });
 
     const form = useForm<z.infer<typeof formSchema>>({
         resolver: zodResolver(formSchema),
         defaultValues: {
-            playerCapacity: currentPlayers,
+            playerCapacity: maxPlayers,
         },
     })
 
     useEffect(() => {
         const handleToast = () => {
             if (state.message) {
-                onUpdate();
+                mutate(roomCode)
                 toast(state.message, { duration: 3000, position: "top-center" });
             }
         }
         handleToast();
-    }, [state])
+    }, [state, roomCode])
 
     return (
         <Card>
