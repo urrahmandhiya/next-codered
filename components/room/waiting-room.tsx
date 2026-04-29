@@ -77,11 +77,11 @@ export default function WaitingRoom({ roomCode }: { roomCode: string }) {
                                 <Skeleton className="aspect-video w-full" />
                             </CardContent>
                         </Card>
-                        : <PlayerList players={players} isHost={isHost} />
+                        : <PlayerList players={players} isHost={isHost} roomCode={roomCode} />
                     }
                 </TabsContent>
                 <TabsContent value="room-settings">
-                    <RoomSettings currentPlayers={currentPlayers} roomCode={roomCode} onUpdate={() => mutate()} />
+                    <RoomSettings maxPlayers={maxPlayers} roomCode={roomCode} />
                 </TabsContent>
             </Tabs>
             <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">

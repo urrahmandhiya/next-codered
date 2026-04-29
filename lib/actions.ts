@@ -224,3 +224,56 @@ export async function updateRoomSettings(roomCode: string, prevState: ActionStat
     }
   }
 }
+
+export async function deletePlayer(roomCode: string, id: string): Promise<ActionResponse> {
+  const key = `room:${roomCode}`;
+  const script = `
+    local roomCode = KEYS[1]
+    local playerId = ARGV[1]
+    local playerField = 'player:' .. playerId
+
+    local roomMetaData = redis.call('HMGET', roomCode, 'currentPlayer', 'status')
+
+    local currentPlayer = tonumber(roomMetaData[1])
+    local roomStatus = roomMetaData[2]
+
+    if roomStatus ~= "waiting" then
+      return 'GAME_IS_STARTNG'
+    end
+
+    local deletedPlayerJSON = redis.call('HGET', roomCode, playerField)
+    local deletedPlayerField = cjson.decode(deletedPlayerJSON)
+    local deletedPlayerName = deletedPlayerField.name
+    local deletedPlayer = redis.call('HDEL', roomCode, playerField)
+    
+    if deletedPlayer == 1 then
+      local newCurrentPlayer = currentPlayer - 1
+      redis.call('HSET', roomCode, 'currentPlayer', newCurrentPlayer)
+      return deletedPlayerName
+    else
+      return "FAILED"
+    end
+  `;
+
+  try {
+    const result = await redis.eval(script, [key], [id]);
+    switch (result) {
+      case "GAME_IS_STARTING":
+        throw new Error("Game is starting, cannot delete a player")
+
+      case "FAILED":
+        throw new Error("Failed to delete a player")
+
+      default:
+        break;
+    }
+    revalidatePath(`/room/${roomCode}`)
+    return { error: null, success: `Player ${result} deleted successfully` }
+  } catch (error) {
+    if (error instanceof Error) {
+      return { error: error.message, success: null }
+    } else {
+      return { error: String(error), success: null }
+    }
+  }
+}
