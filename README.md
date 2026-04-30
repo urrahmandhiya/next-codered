@@ -38,7 +38,7 @@ pnpm install
 
 ### 3. Development
 
-Start the development server:h
+Start the development server:
 
 ```bash
 pnpm dev
