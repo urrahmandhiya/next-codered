@@ -38,10 +38,10 @@ export default function JoinRoomForm({ username, onBack }: { username: string, o
                     />
                 </Field>
                 <div className="flex gap-3 mt-2">
-                    <Button variant="outline" type="button" onClick={onBack} className="w-1/3 h-12 border-[#1e293b] text-zinc-400 hover:text-white hover:bg-[#1e293b]/50">
+                    <Button variant="outline" type="button" onClick={onBack} className="w-1/3 h-12 bg-[#1e293b]/70 border-[#1e293b] text-zinc-400 hover:text-white hover:bg-[#1e293b]/50">
                         Back
                     </Button>
-                    <Button variant="default" type="submit" disabled={isPending} className="w-2/3 h-12 bg-emerald-600 hover:bg-emerald-700 text-white font-bold tracking-widest">
+                    <Button variant="default" type="submit" disabled={isPending} className="w-2/3 h-12 bg-cyan-400 hover:bg-cyan-500 text-white font-bold tracking-widest">
                         {isPending ? <Spinner /> : "CONNECT"}
                     </Button>
                 </div>
