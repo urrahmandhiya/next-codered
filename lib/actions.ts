@@ -277,3 +277,7 @@ export async function deletePlayer(roomCode: string, id: string): Promise<Action
     }
   }
 }
+
+const updatePlayerName = ({roomCode, username, userId}: {roomCode: string, username: string, userId: string}) => {
+  
+}
