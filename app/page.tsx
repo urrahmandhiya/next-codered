@@ -11,10 +11,6 @@ export default function Home() {
       {/* Top Bar */}
       <header className="flex justify-between items-center w-full p-6 text-xs tracking-widest text-[#4b6b9e] uppercase font-mono">
         <div>SYSTEM READY // V2.1.0-BETA</div>
-        <div className="flex items-center gap-2">
-          <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse border border-emerald-400" style={{boxShadow: "0 0 8px rgba(16, 185, 129, 0.8)"}} />
-          <span className="text-emerald-500 font-bold">LIVE</span>
-        </div>
       </header>
 
       {/* Main Content */}
