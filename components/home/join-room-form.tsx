@@ -2,52 +2,48 @@
 
 import { joinRoom } from "@/lib/actions";
 import { Button } from "../ui/button";
-import { Card, CardContent } from "../ui/card";
 import { Field, FieldLabel } from "../ui/field";
 import { Input } from "../ui/input";
 import { useActionState } from "react";
 import { Spinner } from "../ui/spinner";
 import { Alert, AlertTitle } from "../ui/alert";
 import { AlertCircleIcon } from "lucide-react";
-import UsernameInput from "./username-input";
 
 export default function JoinRoomForm({ onBack }: { onBack: () => void }) {
     const [state, formAction, isPending] = useActionState(joinRoom, { message: null, error: null })
     if (state.message) console.log(state.message);
 
     return (
-        <>
-            <Card>
-                <CardContent className="text-xs text-center flex flex-col gap-6">
-                    {state.error !== null &&
-                        <Alert className="max-w-md" variant="destructive">
-                            <AlertCircleIcon />
-                            <AlertTitle>{state.message}</AlertTitle>
-                        </Alert>
-                    }
-                    <form action={formAction}>
-                        <Field>
-                            <UsernameInput />
-                            <FieldLabel htmlFor="room-input">
-                                Room Code
-                            </FieldLabel>
-                            <Input
-                                className="text-xs"
-                                id="room-input"
-                                name="room"
-                                type="text"
-                                placeholder="Enter Room Code"
-                            />
-                            <Button variant="outline" type="submit" disabled={isPending}>
-                                {isPending ? <Spinner /> : "Submit"}
-                            </Button>
-                        </Field>
-                    </form>
-                </CardContent>
-            </Card>
-            <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-                <Button variant="outline" onClick={onBack}>Back</Button>
-            </div>
-        </>
+        <div className="flex flex-col gap-6">
+            {state.error !== null &&
+                <Alert className="max-w-md bg-red-950/50 border-red-900 text-red-200" variant="destructive">
+                    <AlertCircleIcon className="text-red-400" />
+                    <AlertTitle>{state.message}</AlertTitle>
+                </Alert>
+            }
+            <form action={formAction} className="flex flex-col gap-4">
+                <Field>
+                    <FieldLabel htmlFor="room-input" className="text-zinc-400 text-xs uppercase tracking-wider mb-2">
+                        Room Code
+                    </FieldLabel>
+                    <Input
+                        className="h-12 bg-black/50 border-[#1e293b] text-white focus-visible:ring-[#4b6b9e] text-center tracking-widest uppercase text-lg"
+                        id="room-input"
+                        name="room"
+                        type="text"
+                        placeholder="ENTER CODE"
+                        autoComplete="off"
+                    />
+                </Field>
+                <div className="flex gap-3 mt-2">
+                    <Button variant="outline" type="button" onClick={onBack} className="w-1/3 h-12 border-[#1e293b] text-zinc-400 hover:text-white hover:bg-[#1e293b]/50">
+                        Back
+                    </Button>
+                    <Button variant="default" type="submit" disabled={isPending} className="w-2/3 h-12 bg-emerald-600 hover:bg-emerald-700 text-white font-bold tracking-widest">
+                        {isPending ? <Spinner /> : "CONNECT"}
+                    </Button>
+                </div>
+            </form>
+        </div>
     );
 }
