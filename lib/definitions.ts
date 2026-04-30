@@ -8,11 +8,11 @@ export type ActionResponse =
     | { success: string; error: null };
 
 export interface Room {
-  status: string;
-  hostId: string;
+  roomStatus: string;
+  roomHostId: string;
   players: Player[];
-  maxPlayer: number;
-  currentPlayer: number;
+  maxPlayersInRoom: number;
+  playersInRoom: number;
 }
 
 export interface Player {
@@ -23,14 +23,19 @@ export interface Player {
 }
 
 export type RoomMetaData = {
-    status: string; // implement enums later
-    hostId: string;
-    maxPlayer: number;
-    currentPlayer: number;
+    roomStatus: string; // implement enums later
+    roomHostId: string;
+    maxPlayersInRoom: number;
+    playersInRoom: number;
+    activePlayersIds: string;
 };
 
-export type DynamicPlayers = {
-    [key: string]: string | Player;
+export type DynamicPlayerFields = {
+    [key: string]: string | number;
 };
 
-export type RedisRoom = RoomMetaData & DynamicPlayers;
+export type ActivePlayersIds = {
+    id: string;
+}
+
+export type RedisRoom = RoomMetaData & DynamicPlayerFields;

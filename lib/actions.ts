@@ -3,32 +3,37 @@
 import { Redis } from "@upstash/redis";
 import { redirect } from "next/navigation";
 import { cookies } from "next/headers";
-import { ActionResponse, ActionState, Player, RedisRoom, Room } from "./definitions";
+import { ActionResponse, ActionState, ActivePlayersIds, RedisRoom, Room } from "./definitions";
 import { revalidatePath } from "next/cache";
 
 const redis = Redis.fromEnv();
-const MAX_NUMBER_OF_PLAYERS = 8;
+const DEFAULT_MAX_NUMBER_OF_PLAYERS = 12;
 const MINIMAL_CURRENTPLAYERS = 4;
 
 export async function createRoom(prevState: ActionState, formData: FormData): Promise<ActionState> {
   const hostId = crypto.randomUUID();
   // generate random 4-characterstring (e.g., ABCD) - still prone to collision
   const roomCode = Math.random().toString(36).substring(2, 6).toUpperCase();
-  const playerStats = {
+  const playerState = {
     name: formData.get("username"),
     createdAt: Date.now(),
   };
 
   const initialRoomState = {
-    status: "waiting",
-    hostId: hostId,
-    [`player:${hostId}`]: JSON.stringify(playerStats),
-    maxPlayer: MAX_NUMBER_OF_PLAYERS,
-    currentPlayer: 1,
+    roomStatus: "waiting",
+    roomHostId: hostId,
+    [`p:${hostId}:name`]: playerState.name,
+    [`p:${hostId}:createdAt`]: playerState.createdAt,
+    maxPlayersInRoom: DEFAULT_MAX_NUMBER_OF_PLAYERS,
+    playersInRoom: 1,
   };
 
+  const p = redis.pipeline();
+  p.sadd(`room:${roomCode}:activePlayersIds`, hostId)
+  p.hset(`room:${roomCode}`, initialRoomState);
+
   try {
-    await redis.hset(`room:${roomCode}`, initialRoomState);
+    await p.exec();
 
     (await cookies()).set("user_id", hostId, {
       httpOnly: true,
@@ -53,27 +58,33 @@ export async function joinRoom(prevState: ActionState, formData: FormData,): Pro
 
   // lua script
   const script = `
-    local roomCode = KEYS[1]
+    local key = KEYS[1]
     local userId = ARGV[1]
     local unixTimeStamp = ARGV[2]
     local username = ARGV[3]
+    local activePlayersIdsKey = key .. ':activePlayersIds'
 
-    local isKeyExist = redis.call('HEXISTS', roomCode, 'currentPlayer')
+    local isKeyExist = redis.call('HEXISTS', key, 'playersInRoom')
 
     if isKeyExist == 0 then
       return 'ROOM_NOT_FOUND'
     end
     
-    local roomMetaData = redis.call('HMGET', roomCode, 'currentPlayer', 'maxPlayer')
-    local currentPlayer = tonumber(roomMetaData[1])
-    local maxPlayer = tonumber(roomMetaData[2])
+    local roomMetaData = redis.call('HMGET', key, 'playersInRoom', 'maxPlayersInRoom')
+    local playersInRoom = tonumber(roomMetaData[1])
+    local maxPlayersInRoom = tonumber(roomMetaData[2])
 
-    if currentPlayer and maxPlayer and currentPlayer < maxPlayer then
-      local newCurrentPlayer = currentPlayer + 1
-      local playerName = username
-      local initialPlayerState = cjson.encode({ name = playerName, createdAt = tonumber(unixTimeStamp) })
-      redis.call('HSET', roomCode, 'currentPlayer', newCurrentPlayer, 'player:' .. userId, initialPlayerState)
-      return newCurrentPlayer
+    if playersInRoom < maxPlayersInRoom then
+      local newPlayersInRoom = playersInRoom + 1
+      redis.call(
+          'HSET', 
+          key, 
+          'playersInRoom', newPlayersInRoom, 
+          'p:' .. userId .. ':name', username, 
+          'p:' .. userId .. ':createdAt', unixTimeStamp 
+      )
+      redis.call('SADD', activePlayersIdsKey, userId)
+      return newPlayersInRoom
     else
       return 'ROOM_FULL'
     end
@@ -111,29 +122,34 @@ export async function joinRoom(prevState: ActionState, formData: FormData,): Pro
 
 export async function getRoomState(roomCode: string): Promise<{ room: Room | null; userId: string | undefined }> {
   const userId = (await cookies()).get("user_id")?.value;
-  const data = await redis.hgetall<RedisRoom>(`room:${roomCode}`);
 
-  if (!data) {
+  const p = redis.pipeline();
+
+  p.hgetall(`room:${roomCode}`);
+  p.smembers(`room:${roomCode}:activePlayersIds`)
+
+  const [roomData, activePlayersIds] = await p.exec<[RedisRoom, ActivePlayersIds[]]>();
+
+  if (!roomData) {
     return { room: null, userId };
   }
 
   const room = {
-    status: data.status,
-    hostId: data.hostId,
-    players: Object.entries(data)
-      .filter(([key]) => key.startsWith("player:"))
-      .map(([key, val]) => {
-        const playerData = val as Player; // redis already return as Object
-        const playerId = key.replace("player:", "");
-
+    roomStatus: roomData.roomStatus,
+    roomHostId: roomData.roomHostId,
+    players: activePlayersIds
+      .map((id) => {
+        const name = String(roomData[`p:${id}:name`]);
+        const createdAt = Number(roomData[`p:${id}:createdAt`]);
         return {
-          ...playerData,
-          id: playerId,
-          isHost: playerId === data.hostId,
+          name,
+          createdAt,
+          id: String(id),
+          isHost: String(id) === roomData.roomHostId,
         };
       }),
-    maxPlayer: data.maxPlayer,
-    currentPlayer: data.currentPlayer,
+    maxPlayersInRoom: roomData.maxPlayersInRoom,
+    playersInRoom: roomData.playersInRoom,
   };
 
   return { room, userId };
@@ -142,18 +158,18 @@ export async function getRoomState(roomCode: string): Promise<{ room: Room | nul
 export async function startGame(roomCode: string): Promise<ActionResponse> {
   const key = `room:${roomCode}`;
   const script = `
-    local roomCode = KEYS[1]
+    local key = KEYS[1]
     local MINIMAL_CURRENTPLAYERS = ARGV[1]
 
-    local roomMetaData = redis.call('HGET', roomCode, 'currentPlayer')
+    local roomMetaData = redis.call('HGET', key, 'playersInRoom')
     
-    local currentPlayer = tonumber(roomMetaData)
+    local playersInRoom = tonumber(roomMetaData)
     local minimumPlayers = tonumber(MINIMAL_CURRENTPLAYERS)
 
-    if currentPlayer >= minimumPlayers then
-      local currentStatus = 'playing'
-      redis.call('HSET', roomCode, 'status', currentStatus)
-      return currentStatus
+    if playersInRoom >= minimumPlayers then
+      local newRoomStatus = 'playing'
+      redis.call('HSET', key, 'roomStatus', newRoomStatus)
+      return newRoomStatus
     else
       return 'INSUFFICIENT_PLAYERS'
     end
@@ -181,24 +197,24 @@ export async function updateRoomSettings(roomCode: string, prevState: ActionStat
   const playerCapacity = formData.get("player-cap");
   const key = `room:${roomCode}`;
   const script = `
-    local roomCode = KEYS[1]
+    local key = KEYS[1]
     local playerCapacity = ARGV[1]
-    local newMaxPlayer = tonumber(playerCapacity)
+    local newMaxPlayersInRoom = tonumber(playerCapacity)
 
-    local roomMetaData = redis.call('HMGET', roomCode, 'currentPlayer', 'status')
+    local roomMetaData = redis.call('HMGET', key, 'playersInRoom', 'roomStatus')
 
-    local currentPlayer = tonumber(roomMetaData[1])
+    local playersInRoom = tonumber(roomMetaData[1])
     local roomStatus = roomMetaData[2]
 
     if roomStatus ~= "waiting" then
       return "GAME_IS_STARTING"
     end
 
-    if newMaxPlayer < currentPlayer then
+    if newMaxPlayersInRoom < playersInRoom then
       return "PLAYER_IN_ROOM_EXCEEDS_NEW_CAPACITY"
     end
     
-    redis.call('HSET', roomCode, 'maxPlayer', newMaxPlayer)
+    redis.call('HSET', key, 'maxPlayersInRoom', newMaxPlayersInRoom)
     return "SUCCESS"
     `;
 
@@ -228,27 +244,29 @@ export async function updateRoomSettings(roomCode: string, prevState: ActionStat
 export async function deletePlayer(roomCode: string, id: string): Promise<ActionResponse> {
   const key = `room:${roomCode}`;
   const script = `
-    local roomCode = KEYS[1]
+    local key = KEYS[1]
     local playerId = ARGV[1]
-    local playerField = 'player:' .. playerId
+    local activePlayersIdsKey = key .. ':activePlayersIds'
 
-    local roomMetaData = redis.call('HMGET', roomCode, 'currentPlayer', 'status')
+    local playerName = 'p:' .. playerId .. ':name'
+    local playerCreatedAt = 'p:' .. playerId .. ':createdAt'
 
-    local currentPlayer = tonumber(roomMetaData[1])
+    local roomMetaData = redis.call('HMGET', key, 'playersInRoom', 'roomStatus', playerName)
+
+    local playersInRoom = tonumber(roomMetaData[1])
     local roomStatus = roomMetaData[2]
+    local deletedPlayerName = roomMetaData[3]
 
     if roomStatus ~= "waiting" then
       return 'GAME_IS_STARTNG'
     end
 
-    local deletedPlayerJSON = redis.call('HGET', roomCode, playerField)
-    local deletedPlayerField = cjson.decode(deletedPlayerJSON)
-    local deletedPlayerName = deletedPlayerField.name
-    local deletedPlayer = redis.call('HDEL', roomCode, playerField)
+    local deletedPlayer = redis.call('HDEL', key, playerName, playerCreatedAt)
     
-    if deletedPlayer == 1 then
-      local newCurrentPlayer = currentPlayer - 1
-      redis.call('HSET', roomCode, 'currentPlayer', newCurrentPlayer)
+    if deletedPlayer == 2 then
+      local newCurrentPlayer = playersInRoom - 1
+      redis.call('HSET', key, 'playersInRoom', newCurrentPlayer)
+      redis.call('SREM', activePlayersIdsKey, playerId)
       return deletedPlayerName
     else
       return "FAILED"
@@ -278,6 +296,6 @@ export async function deletePlayer(roomCode: string, id: string): Promise<Action
   }
 }
 
-const updatePlayerName = ({roomCode, username, userId}: {roomCode: string, username: string, userId: string}) => {
-  
+const updatePlayerName = ({ roomCode, username, userId }: { roomCode: string, username: string, userId: string }) => {
+
 }

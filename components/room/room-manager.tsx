@@ -17,7 +17,7 @@ export default function RoomManager() {
         revalidateIfStale: false,
     });
 
-    const roomStatus = data ? data.status : "waiting";
+    const roomStatus = data ? data.roomStatus : "waiting";
 
     return (
         <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-around py-32 px-16 bg-white dark:bg-black">

@@ -40,10 +40,10 @@ export default function WaitingRoom({ roomCode }: { roomCode: string }) {
 
     const userId = useUserCookies();
 
-    const currentPlayers = data?.currentPlayer || 0;
-    const maxPlayers = data?.maxPlayer || 0;
+    const playersInRoom = data?.playersInRoom || 0;
+    const maxPlayersInRoom = data?.maxPlayersInRoom || 0;
     const players = data?.players as Player[];
-    const isHost = data?.hostId === userId;
+    const isHost = data?.roomHostId === userId;
 
     const handleStartGame = () => {
         startTransition(async () => {
@@ -67,7 +67,7 @@ export default function WaitingRoom({ roomCode }: { roomCode: string }) {
             }
             <Tabs defaultValue="overview" className="min-w-64">
                 <TabsList>
-                    <TabsTrigger value="overview">Players {`[${currentPlayers}/${maxPlayers}]`}</TabsTrigger>
+                    <TabsTrigger value="overview">Players {`[${playersInRoom}/${maxPlayersInRoom}]`}</TabsTrigger>
                     {isHost && <TabsTrigger value="room-settings">Room Settings</TabsTrigger>}
                     <TabsTrigger value="player-name-change">Change Name</TabsTrigger>
                 </TabsList>
@@ -83,7 +83,7 @@ export default function WaitingRoom({ roomCode }: { roomCode: string }) {
                     }
                 </TabsContent>
                 <TabsContent value="room-settings">
-                    <RoomSettings maxPlayers={maxPlayers} roomCode={roomCode} />
+                    <RoomSettings maxPlayersInRoom={maxPlayersInRoom} roomCode={roomCode} />
                 </TabsContent>
                 <TabsContent value="player-name-change">
                     <PlayerNameChange players={players} />

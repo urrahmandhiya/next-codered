@@ -20,14 +20,14 @@ const formSchema = z.object({
         .max(12, "Player maximum 12"),
 })
 
-export default function RoomSettings({ maxPlayers, roomCode }: { maxPlayers: number, roomCode: string }) {
+export default function RoomSettings({ maxPlayersInRoom, roomCode }: { maxPlayersInRoom: number, roomCode: string }) {
     const updateRoomSettingsWithRoomCode = updateRoomSettings.bind(null, roomCode);
     const [state, formAction, isPending] = useActionState(updateRoomSettingsWithRoomCode, { message: null, error: null });
 
     const form = useForm<z.infer<typeof formSchema>>({
         resolver: zodResolver(formSchema),
         defaultValues: {
-            playerCapacity: maxPlayers,
+            playerCapacity: maxPlayersInRoom,
         },
     })
 
