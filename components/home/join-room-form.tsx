@@ -9,19 +9,21 @@ import { Spinner } from "../ui/spinner";
 import { Alert, AlertTitle } from "../ui/alert";
 import { AlertCircleIcon } from "lucide-react";
 
-export default function JoinRoomForm({ onBack }: { onBack: () => void }) {
+export default function JoinRoomForm({ username, onBack }: { username: string, onBack: () => void }) {
     const [state, formAction, isPending] = useActionState(joinRoom, { message: null, error: null })
-    if (state.message) console.log(state.message);
 
     return (
         <div className="flex flex-col gap-6">
-            {state.error !== null &&
-                <Alert className="max-w-md bg-red-950/50 border-red-900 text-red-200" variant="destructive">
-                    <AlertCircleIcon className="text-red-400" />
-                    <AlertTitle>{state.message}</AlertTitle>
+            {(state.error || state.message) && (
+                <Alert className="bg-red-950/50 border-red-900 text-red-200" variant="destructive">
+                    <AlertCircleIcon className="w-4 h-4 text-red-400" />
+                    <AlertTitle className="text-xs uppercase tracking-widest">
+                        {state.message || state.error}
+                    </AlertTitle>
                 </Alert>
-            }
+            )}
             <form action={formAction} className="flex flex-col gap-4">
+                <input type="hidden" name="username" value={username} />
                 <Field>
                     <FieldLabel htmlFor="room-input" className="text-zinc-400 text-xs uppercase tracking-wider mb-2">
                         Room Code

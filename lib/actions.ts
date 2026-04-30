@@ -11,6 +11,8 @@ const DEFAULT_MAX_NUMBER_OF_PLAYERS = 12;
 const MINIMAL_CURRENTPLAYERS = 4;
 
 export async function createRoom(prevState: ActionState, formData: FormData): Promise<ActionState> {
+  console.log("[createRoom] Action started");
+  console.time("createRoom total");
   const hostId = crypto.randomUUID();
   // generate random 4-characterstring (e.g., ABCD) - still prone to collision
   const roomCode = Math.random().toString(36).substring(2, 6).toUpperCase();
@@ -33,7 +35,9 @@ export async function createRoom(prevState: ActionState, formData: FormData): Pr
   p.hset(`room:${roomCode}`, initialRoomState);
 
   try {
+    console.time("redis pipeline exec");
     await p.exec();
+    console.timeEnd("redis pipeline exec");
 
     (await cookies()).set("user_id", hostId, {
       httpOnly: true,
@@ -41,15 +45,22 @@ export async function createRoom(prevState: ActionState, formData: FormData): Pr
       sameSite: "lax",
     });
   } catch (error) {
+    console.timeEnd("createRoom total");
     if (error instanceof Error) {
+      console.error("[createRoom] Error:", error.message);
       return { message: error.message };
     }
+    console.error("[createRoom] Unknown Error:", error);
     return { error: String(error) };
   }
+  console.timeEnd("createRoom total");
+  console.log("[createRoom] Success, redirecting to /room/", roomCode);
   redirect(`/room/${roomCode}`);
 }
 
 export async function joinRoom(prevState: ActionState, formData: FormData,): Promise<ActionState> {
+  console.log("[joinRoom] Action started");
+  console.time("joinRoom total");
   const userId = crypto.randomUUID();
   const roomCode = formData.get("room");
   const username = formData.get("username")
@@ -110,12 +121,17 @@ export async function joinRoom(prevState: ActionState, formData: FormData,): Pro
       sameSite: "lax",
     });
   } catch (error) {
+    console.timeEnd("joinRoom total");
     if (error instanceof Error) {
+      console.error("[joinRoom] Error:", error.message);
       return { message: error.message };
     }
+    console.error("[joinRoom] Unknown Error:", error);
     return { error: String(error) };
   }
 
+  console.timeEnd("joinRoom total");
+  console.log("[joinRoom] Success, redirecting to /room/", roomCode);
   revalidatePath(`/room/${roomCode}`);
   redirect(`/room/${roomCode}`);
 }

@@ -1,15 +1,33 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import JoinFormRoom from "./join-room-form";
 import RoomActions from "./room-actions";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { CyberButton } from "./cyber-button";
-import UsernameInput from "./username-input";
+import UsernameInput, { shuffledRandomNames } from "./username-input";
 
 export default function RoomEntry() {
     const [isJoining, setIsJoining] = useState(false);
     const [open, setOpen] = useState(false);
+    const [username, setUsername] = useState("");
+
+    // Initialize username from localStorage
+    useEffect(() => {
+        const savedUsername = localStorage.getItem("codered_username");
+        if (savedUsername) {
+            setUsername(savedUsername);
+        } else {
+            const defaultName = shuffledRandomNames[0];
+            setUsername(defaultName);
+            localStorage.setItem("codered_username", defaultName);
+        }
+    }, []);
+
+    const handleUsernameChange = (newUsername: string) => {
+        setUsername(newUsername);
+        localStorage.setItem("codered_username", newUsername);
+    };
 
     const handleOpenChange = (newOpen: boolean) => {
         setOpen(newOpen);
@@ -39,13 +57,13 @@ export default function RoomEntry() {
                         <h3 className="text-xs font-bold mb-3 text-[#4b6b9e] uppercase tracking-[0.2em]">
                             Agent Identity
                         </h3>
-                        <UsernameInput />
+                        <UsernameInput value={username} onChange={handleUsernameChange} />
                     </div>
                     
                     <div className="flex flex-col gap-4">
                         {isJoining
-                            ? <JoinFormRoom onBack={() => setIsJoining(false)} />
-                            : <RoomActions onJoinRoom={() => setIsJoining(true)} />
+                            ? <JoinFormRoom username={username} onBack={() => setIsJoining(false)} />
+                            : <RoomActions username={username} onJoinRoom={() => setIsJoining(true)} />
                         }
                     </div>
                 </div>
