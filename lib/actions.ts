@@ -32,6 +32,10 @@ export async function createRoom(prevState: ActionState, formData: FormData): Pr
   p.sadd(`room:${roomCode}:activePlayersIds`, hostId)
   p.hset(`room:${roomCode}`, initialRoomState);
 
+  // keys are set to expire in one hour
+  p.expire(`room:${roomCode}`, 3600)
+  p.expire(`room:${roomCode}:activePlayersIds`, 3600)
+
   try {
     await p.exec();
 
