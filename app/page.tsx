@@ -23,9 +23,9 @@ export default function Home() {
               <span className="text-white">CODE</span>
               <span className="text-red-600 text-glow-red">RED</span>
             </h1>
-            <div className="absolute -bottom-2 left-1/2 -translate-x-1/2 w-[120%] h-[2px] sm:h-[3px] md:h-[4px] bg-linear-to-r from-transparent via-red-600 to-transparent opacity-90 border-glow-red" />
+            <div className="absolute -bottom-2 left-1/2 -translate-x-1/2 w-[120%] h-0.5 sm:h-0.75 md:h-1 bg-linear-to-r from-transparent via-red-600 to-transparent opacity-90 border-glow-red" />
           </div>
-          <h2 className="text-[#6484b9] text-[0.65rem] sm:text-xs font-mono tracking-[0.2em] text-center max-w-[280px] sm:max-w-none leading-relaxed">
+          <h2 className="text-[#6484b9] text-[0.65rem] sm:text-xs font-mono tracking-[0.2em] text-center max-w-70 sm:max-w-none leading-relaxed">
             CYBER SECURITY THEMED SOCIAL DEDUCTION
           </h2>
         </div>
