@@ -11,7 +11,7 @@ import {
 import PlayerList from "./player-list";
 import { Skeleton } from "../ui/skeleton";
 import { Card, CardContent } from "../ui/card";
-import { startGame } from "@/lib/actions";
+import { startGame } from "@/lib/actions/room";
 import RoomSettings from "./room-settings";
 import { useState, useTransition } from "react";
 import { Spinner } from "../ui/spinner";
@@ -86,7 +86,7 @@ export default function WaitingRoom({ roomCode }: { roomCode: string }) {
                     <RoomSettings maxPlayersInRoom={maxPlayersInRoom} roomCode={roomCode} />
                 </TabsContent>
                 <TabsContent value="player-name-change">
-                    <PlayerNameChange players={players} />
+                    <PlayerNameChange roomCode={roomCode} players={players} />
                 </TabsContent>
             </Tabs>
             <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">

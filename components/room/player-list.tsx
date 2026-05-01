@@ -7,7 +7,7 @@ import { useUserCookies } from "./cookie-provider";
 import { Button } from "../ui/button";
 import { XIcon } from "lucide-react";
 import { useTransition } from "react";
-import { deletePlayer } from "@/lib/actions";
+import { deletePlayer } from "@/lib/actions/room";
 import { toast } from "sonner";
 import { mutate } from "swr";
 
@@ -34,7 +34,7 @@ export default function PlayerList({ players, isHost, roomCode }: { players: Pla
                 <ScrollArea className="h-48 w-full">
                     <ItemGroup>
                         {descendingPlayers.map((player) => (
-                            <Item key={player.name} variant="outline">
+                            <Item key={player.id} variant="outline">
                                 <ItemContent>
                                     <ItemTitle className="flex justify-between w-full">
                                         {player.name}

@@ -1,6 +1,6 @@
 "use client"
 
-import { joinRoom } from "@/lib/actions";
+import { joinRoom } from "@/lib/actions/home";
 import { Button } from "../ui/button";
 import { Field, FieldLabel } from "../ui/field";
 import { Input } from "../ui/input";

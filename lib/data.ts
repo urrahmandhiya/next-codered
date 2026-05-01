@@ -1,4 +1,4 @@
-import { getRoomState } from "./actions";
+import { getRoomState } from "./actions/room";
 
 export async function updateRoomState(roomCode: string) {
     const { room } = await getRoomState(roomCode);

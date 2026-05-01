@@ -8,7 +8,7 @@ import { Controller, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { toast } from "sonner";
 import { Field, FieldGroup, FieldLabel } from "../ui/field";
-import { updateRoomSettings } from "@/lib/actions";
+import { updateRoomSettings } from "@/lib/actions/room";
 import { useActionState, useEffect } from "react";
 import { Spinner } from "../ui/spinner";
 import { mutate } from "swr";

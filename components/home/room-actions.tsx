@@ -2,7 +2,7 @@
 
 import { Button } from "../ui/button";
 import { useActionState } from "react";
-import { createRoom } from "@/lib/actions";
+import { createRoom } from "@/lib/actions/home";
 import { Spinner } from "../ui/spinner";
 import { Alert, AlertTitle } from "../ui/alert";
 import { AlertCircleIcon } from "lucide-react";
