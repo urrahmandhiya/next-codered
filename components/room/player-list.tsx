@@ -7,7 +7,7 @@ import { useUserCookies } from "./cookie-provider";
 import { Button } from "../ui/button";
 import { XIcon } from "lucide-react";
 import { useTransition } from "react";
-import { deletePlayer } from "@/lib/actions";
+import { deletePlayer } from "@/lib/actions/room";
 import { toast } from "sonner";
 import { mutate } from "swr";
 

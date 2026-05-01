@@ -5,7 +5,7 @@ import { Input } from "../ui/input";
 import { Label } from "../ui/label";
 import { useUserCookies } from "./cookie-provider";
 import { useActionState, useEffect, useState } from "react";
-import { updatePlayerName } from "@/lib/actions";
+import { updatePlayerName } from "@/lib/actions/room";
 import { toast } from "sonner";
 import { mutate } from "swr";
 

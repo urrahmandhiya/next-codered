@@ -11,7 +11,7 @@ import {
 import PlayerList from "./player-list";
 import { Skeleton } from "../ui/skeleton";
 import { Card, CardContent } from "../ui/card";
-import { startGame } from "@/lib/actions";
+import { startGame } from "@/lib/actions/room";
 import RoomSettings from "./room-settings";
 import { useState, useTransition } from "react";
 import { Spinner } from "../ui/spinner";
