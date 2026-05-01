@@ -7,7 +7,7 @@ import { ActionResponse, ActionState, ActivePlayersIds, RedisRoom, Room } from "
 import { revalidatePath } from "next/cache";
 
 const redis = Redis.fromEnv();
-const DEFAULT_MAX_NUMBER_OF_PLAYERS = 12;
+const DEFAULT_MAX_NUMBER_OF_PLAYERS = 8;
 const MINIMAL_CURRENTPLAYERS = 4;
 
 export async function createRoom(prevState: ActionState, formData: FormData): Promise<ActionState> {
