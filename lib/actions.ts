@@ -300,6 +300,18 @@ export async function deletePlayer(roomCode: string, id: string): Promise<Action
   }
 }
 
-const updatePlayerName = ({ roomCode, username, userId }: { roomCode: string, username: string, userId: string }) => {
-
+export async function updatePlayerName(roomCode: string, prevState: ActionState, formData: FormData): Promise<ActionState> {
+  const userId = (await cookies()).get("user_id")?.value;
+  const username = formData.get("username");
+  const key = `room:${roomCode}`;
+  try {
+    await redis.hset(key, { [`p:${userId}:name`]: username });
+    return { message: "Name changed successfully" }
+  } catch (error) {
+    if (error instanceof Error) {
+      return { message: error.message }
+    } else {
+      return { error: String(error) }
+    }
+  }
 }

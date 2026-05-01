@@ -86,7 +86,7 @@ export default function WaitingRoom({ roomCode }: { roomCode: string }) {
                     <RoomSettings maxPlayersInRoom={maxPlayersInRoom} roomCode={roomCode} />
                 </TabsContent>
                 <TabsContent value="player-name-change">
-                    <PlayerNameChange players={players} />
+                    <PlayerNameChange roomCode={roomCode} players={players} />
                 </TabsContent>
             </Tabs>
             <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
