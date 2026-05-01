@@ -27,7 +27,7 @@ const randomNames = [
     "crow-hunter"
 ];
 
-const shuffledRandomNames = randomNames
+export const shuffledRandomNames = randomNames
     .map(value => ({ value, sort: Math.random() }))
     .sort((a, b) => a.sort - b.sort)
     .map(({ value }) => {
@@ -36,31 +36,43 @@ const shuffledRandomNames = randomNames
     });
 
 
-export default function UsernameInput() {
+export default function UsernameInput({ 
+    value, 
+    onChange 
+}: { 
+    value: string; 
+    onChange: (val: string) => void 
+}) {
     const [count, setCount] = useState(0)
-    const [username, setUsername] = useState(shuffledRandomNames[0])
 
     const handleShuffleName = () => {
-        if (count < randomNames.length - 1) {
-            setCount(count + 1);
-        } else {
-            setCount(0);
-        }
-        setUsername(shuffledRandomNames[count])
+        const nextCount = (count + 1) % shuffledRandomNames.length;
+        setCount(nextCount);
+        onChange(shuffledRandomNames[nextCount]);
     }
     return (
-        <div className="flex w-full justify-between gap-4">
+        <div className="flex w-full justify-between gap-3">
             <Label htmlFor="username" className="sr-only">
                 Username
             </Label>
             <Input
-                className="text-xs"
+                className="h-11 bg-black/50 border-[#1e293b] text-white focus-visible:ring-[#4b6b9e] font-mono text-sm tracking-wide"
                 id="username"
                 name="username"
-                value={username}
-                onChange={(e) => setUsername(e.target.value)}
+                value={value}
+                onChange={(e) => onChange(e.target.value)}
+                autoComplete="off"
+                spellCheck="false"
             />
-            <Button variant="outline" onClick={handleShuffleName}><Dices /></Button>
+            <Button 
+                variant="outline" 
+                type="button"
+                className="h-11 w-11 shrink-0 bg-[#111827] border-[#1e293b] text-[#4b6b9e] hover:bg-[#1e293b] hover:text-white transition-colors"
+                onClick={handleShuffleName}
+                title="Shuffle Identity"
+            >
+                <Dices className="w-5 h-5" />
+            </Button>
         </div>
     );
 }

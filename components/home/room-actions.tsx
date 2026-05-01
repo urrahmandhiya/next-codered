@@ -1,40 +1,46 @@
 "use client"
 
 import { Button } from "../ui/button";
-import { Card, CardContent } from "../ui/card";
 import { useActionState } from "react";
 import { createRoom } from "@/lib/actions";
 import { Spinner } from "../ui/spinner";
-import UsernameInput from "./username-input";
+import { Alert, AlertTitle } from "../ui/alert";
+import { AlertCircleIcon } from "lucide-react";
 
-const HOME_DESCRIPTION = `
-  Removing physical boundaries. 
-  By using your smartphone as the primary terminal, 
-  gameplay is flexible and modern.
-  The system acts as an automated Game Master, 
-  allowing everyone to play without needing a dedicated judge.
-`
-
-export default function RoomActions({ onJoinRoom }: { onJoinRoom: () => void }) {
+export default function RoomActions({ username, onJoinRoom }: { username: string, onJoinRoom: () => void }) {
     const [state, formAction, isPending] = useActionState(createRoom, { message: null, error: null })
-    if (state.message) console.log(state.message);
 
     return (
-        <>
-            <Card>
-                <CardContent className="text-xs text-center">
-                    {HOME_DESCRIPTION}
-                </CardContent>
-            </Card>
-            <div className="flex flex-col gap-4 text-base">
-                <form action={formAction} className="flex flex-col gap-4">
-                    <UsernameInput />
-                    <Button variant="outline" type="submit" disabled={isPending}>
-                        {isPending ? <Spinner /> : "Create Room"}
+        <div className="flex flex-col gap-4 w-full">
+            {(state.error || state.message) && (
+                <Alert className="bg-red-950/50 border-red-900 text-red-200" variant="destructive">
+                    <AlertCircleIcon className="w-4 h-4 text-red-400" />
+                    <AlertTitle className="text-xs uppercase tracking-widest">
+                        {state.message || state.error}
+                    </AlertTitle>
+                </Alert>
+            )}
+            <div className="grid grid-cols-2 gap-4 w-full">
+                <form action={formAction} className="w-full">
+                    <input type="hidden" name="username" value={username} />
+                    <Button variant="default" type="submit" disabled={isPending} className="w-full h-16 bg-red-600 hover:bg-red-700 text-white font-bold text-xs uppercase tracking-widest flex flex-col gap-1 items-center justify-center border border-red-500/50 shadow-[0_0_15px_rgba(220,38,38,0.2)]">
+                        {isPending ? <Spinner /> : (
+                            <>
+                                <span>Create</span>
+                                <span>Room</span>
+                            </>
+                        )}
                     </Button>
                 </form>
-                <Button variant="outline" onClick={onJoinRoom}>Join Room</Button>
+                <Button 
+                    variant="outline" 
+                    onClick={onJoinRoom} 
+                    className="w-full h-16 bg-[#111827] border-zinc-800 text-zinc-400 hover:bg-zinc-800 hover:text-white transition-colors flex flex-col gap-1 items-center justify-center font-bold text-xs uppercase tracking-widest"
+                >
+                    <span>Join</span>
+                    <span>Room</span>
+                </Button>
             </div>
-        </>
+        </div>
     );
 }
