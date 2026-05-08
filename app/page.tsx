@@ -12,7 +12,7 @@ export default function Home() {
       
       {/* Top Bar */}
       <header className="flex justify-between items-center w-full p-6 text-xs tracking-widest text-[#4b6b9e] uppercase font-mono">
-        <div>SYSTEM READY // V2.1.0-BETA</div>
+        <div>SYSTEM READY // V0.1-ALPHA</div>
       </header>
 
       {/* Main Content */}
