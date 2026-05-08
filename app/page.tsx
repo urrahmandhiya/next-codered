@@ -1,6 +1,8 @@
 import RoomEntry from "@/components/home/room-entry";
 import { Users } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
+import Link from "next/link";
 
 const HOME_DESCRIPTION = `Removing physical boundaries. By using your smartphone as the primary terminal, gameplay is flexible and modern. The system acts as an automated Game Master, allowing everyone to play without needing a dedicated judge.`;
 
@@ -47,14 +49,17 @@ export default function Home() {
         <div className="flex flex-col items-center w-full gap-4 max-w-xs">
           <RoomEntry />
           
-          <Button 
-            variant="outline" 
-            className="w-full h-12 bg-transparent border-[#1e293b] text-[#6484b9] hover:bg-[#1e293b]/50 hover:text-white transition-colors"
+          <Link 
+            href="/contributor"
+            className={cn(
+              buttonVariants({ variant: "outline" }),
+              "w-full h-12 bg-transparent border-[#1e293b] text-[#6484b9] hover:bg-[#1e293b]/50 hover:text-white transition-colors"
+            )}
           >
             <Users className="w-4 h-4 mr-2" />
-            Kontributor
+            Contributor
             <span className="ml-auto text-[#4b6b9e]">&gt;</span>
-          </Button>
+          </Link>
         </div>
 
       </main>
