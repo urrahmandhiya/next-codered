@@ -45,7 +45,7 @@ export default function ContributorPage() {
                   {contrib.role}
                 </p>
                 <p className="text-[0.7rem] text-zinc-500 font-mono mt-1">
-                  // {contrib.status}
+                  {contrib.status}
                 </p>
               </div>
 
