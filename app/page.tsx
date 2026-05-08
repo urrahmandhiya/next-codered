@@ -66,7 +66,7 @@ export default function Home() {
 
       {/* Footer */}
       <footer className="w-full p-6 text-center text-[0.65rem] tracking-[0.3em] text-[#4b6b9e] font-mono">
-        BETA VERSION
+        ALPHA VERSION
       </footer>
       
     </div>
