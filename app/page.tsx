@@ -1,6 +1,6 @@
 import RoomEntry from "@/components/home/room-entry";
 import { Users } from "lucide-react";
-import { Button, buttonVariants } from "@/components/ui/button";
+import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import Link from "next/link";
 
