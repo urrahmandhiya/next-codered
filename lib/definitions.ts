@@ -8,18 +8,21 @@ export type ActionResponse =
     | { success: string; error: null };
 
 export interface Room {
-  roomStatus: string;
-  roomHostId: string;
-  players: Player[];
-  maxPlayersInRoom: number;
-  playersInRoom: number;
+    roomStatus: string;
+    roomHostId: string;
+    players: Player[];
+    maxPlayersInRoom: number;
+    playersInRoom: number;
+    roles: Role[];
 }
+
 
 export interface Player {
     id: string;
     name: string;
     isHost: boolean;
     createdAt: number;
+    role: string;
 }
 
 export type RoomMetaData = {
@@ -30,12 +33,17 @@ export type RoomMetaData = {
     activePlayersIds: string;
 };
 
-export type DynamicPlayerFields = {
+type DynamicFields = {
     [key: string]: string | number;
 };
+
+export type Role = { 
+    name: string; 
+    amount: number 
+}
 
 export type ActivePlayersIds = {
     id: string;
 }
 
-export type RedisRoom = RoomMetaData & DynamicPlayerFields;
+export type RedisRoom = RoomMetaData & DynamicFields;
