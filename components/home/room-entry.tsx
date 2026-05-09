@@ -12,10 +12,13 @@ export default function RoomEntry() {
     const [open, setOpen] = useState(false);
     const [username, setUsername] = useState("");
 
+    // const setUserN
+
     // Initialize username from localStorage
     useEffect(() => {
         const savedUsername = localStorage.getItem("codered_username");
         if (savedUsername) {
+            // eslint-disable-next-line react-hooks/set-state-in-effect
             setUsername(savedUsername);
         } else {
             const defaultName = shuffledRandomNames[0];

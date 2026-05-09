@@ -14,14 +14,14 @@ const CyberButton = React.forwardRef<HTMLButtonElement, CyberButtonProps>(
         ref={ref}
         className={cn(
           "relative h-14 w-full bg-transparent border-red-600 border text-red-500 hover:bg-red-950/30 hover:text-red-400 transition-all overflow-visible",
-          "before:absolute before:top-[-2px] before:left-[-2px] before:w-3 before:h-3 before:border-t-2 before:border-l-2 before:border-red-500",
-          "after:absolute after:bottom-[-2px] after:right-[-2px] after:w-3 after:h-3 after:border-b-2 after:border-r-2 after:border-red-500",
+          "before:absolute before:-top-0.5 before:-left-0.5 before:w-3 before:h-3 before:border-t-2 before:border-l-2 before:border-red-500",
+          "after:absolute after:-bottom-0.5 after:-right-0.5 after:w-3 after:h-3 after:border-b-2 after:border-r-2 after:border-red-500",
           className
         )}
         {...props}
       >
-        <div className="absolute top-[-2px] right-[-2px] w-3 h-3 border-t-2 border-r-2 border-red-500" />
-        <div className="absolute bottom-[-2px] left-[-2px] w-3 h-3 border-b-2 border-l-2 border-red-500" />
+        <div className="absolute -top-0.5 -right-0.5 w-3 h-3 border-t-2 border-r-2 border-red-500" />
+        <div className="absolute -bottom-0.5 -left-0.5 w-3 h-3 border-b-2 border-l-2 border-red-500" />
         
         {/* Glow effect on hover */}
         <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity bg-red-600/10 blur-md rounded-md" />
