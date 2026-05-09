@@ -44,6 +44,8 @@ export default function WaitingRoom({ roomCode }: { roomCode: string }) {
     const maxPlayersInRoom = data?.maxPlayersInRoom || 0;
     const players = data?.players as Player[];
     const isHost = data?.roomHostId === userId;
+    const roles = data?.roles || [];
+    const totalRoles = data?.roles.reduce((acc, curr) => acc += Number(curr.amount), 0) || 0;
 
     const handleStartGame = () => {
         startTransition(async () => {
@@ -83,7 +85,7 @@ export default function WaitingRoom({ roomCode }: { roomCode: string }) {
                     }
                 </TabsContent>
                 <TabsContent value="room-settings">
-                    <RoomSettings maxPlayersInRoom={maxPlayersInRoom} roomCode={roomCode} />
+                    <RoomSettings maxPlayersInRoom={maxPlayersInRoom} roomCode={roomCode} roles={roles} totalRoles={totalRoles} />
                 </TabsContent>
                 <TabsContent value="player-name-change">
                     <PlayerNameChange roomCode={roomCode} players={players} />
