@@ -28,7 +28,7 @@ export default function RoomSettings({
     const [totalRolesSetting, setTtotalRolesSetting] = useState(totalRoles);
 
     const updateRoomSettingsWithRoomCode = updateRoomSettings.bind(null, roomCode);
-    const [state, formAction, isPending] = useActionState(updateRoomSettingsWithRoomCode, { message: null, error: null });
+    const [state, formAction, isPending] = useActionState(updateRoomSettingsWithRoomCode, null);
 
     const handleTotalAmount = (btn: "increment" | "decrement", amount: number) => {
         if (btn === "increment") {
@@ -59,7 +59,7 @@ export default function RoomSettings({
 
     useEffect(() => {
         const handleToast = () => {
-            if (state.message) {
+            if (state?.success === true) {
                 mutate(roomCode)
                 toast(state.message, { duration: 3000, position: "top-center" });
             }

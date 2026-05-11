@@ -2,7 +2,7 @@
 
 import { Redis } from "@upstash/redis";
 import { cookies } from "next/headers";
-import { ActionResponse, ActionState, ActivePlayersIds, RedisRoom, Role, Room } from "../definitions";
+import { ActionResponse, RedisRoom, Role, Room } from "../definitions";
 import { revalidatePath } from "next/cache";
 
 const redis = Redis.fromEnv();
@@ -18,7 +18,7 @@ export async function getRoomState(roomCode: string): Promise<{ room: Room | nul
     p.hgetall(`room:${roomCode}`);
     p.smembers(`room:${roomCode}:activePlayersIds`);
 
-    const [roomData, activePlayersIds] = await p.exec<[RedisRoom, ActivePlayersIds[]]>();
+    const [roomData, activePlayersIds] = await p.exec<[RedisRoom, string[]]>();
 
     if (!roomData) {
         return { room: null, userId };
@@ -145,17 +145,17 @@ export async function startGame(roomCode: string): Promise<ActionResponse> {
                 break;
         }
 
-        return { success: String(result), error: null };
+        return { success: true, message: String(result) };
     } catch (error) {
         if (error instanceof Error) {
-            return { success: null, error: error.message };
+            return { success: false, error: error.message };
         } else {
-            return { success: null, error: String(error) };
+            return { success: false, error: String(error) };
         }
     }
 }
 
-export async function updateRoomSettings(roomCode: string, prevState: ActionState, formData: FormData): Promise<ActionState> {
+export async function updateRoomSettings(roomCode: string, prevState: ActionResponse, formData: FormData): Promise<ActionResponse> {
     const key = `room:${roomCode}`;
     const playerCapacity = formData.get("player-cap");
     const roles = CURRENT_ROLES.map((role) => ({ [`${role}`]: formData.get(`${role}-amount`) }));
@@ -214,12 +214,12 @@ export async function updateRoomSettings(roomCode: string, prevState: ActionStat
                 break;
         }
         revalidatePath(`/room/${roomCode}`)
-        return { error: null, message: "Room settings changed" }
+        return { success: true, message: "Room settings changed" }
     } catch (error) {
         if (error instanceof Error) {
-            return { message: error.message };
+            return { success: false, error: error.message };
         } else {
-            return { error: String(error) };
+            return { success: false, error: String(error) };
         }
     }
 }
@@ -269,28 +269,28 @@ export async function deletePlayer(roomCode: string, id: string): Promise<Action
                 break;
         }
         revalidatePath(`/room/${roomCode}`)
-        return { error: null, success: `Player ${result} deleted successfully` }
+        return { success: true, message: `Player ${result} deleted successfully` }
     } catch (error) {
         if (error instanceof Error) {
-            return { error: error.message, success: null }
+            return { success: false, error: error.message }
         } else {
-            return { error: String(error), success: null }
+            return { success: false, error: String(error) }
         }
     }
 }
 
-export async function updatePlayerName(roomCode: string, prevState: ActionState, formData: FormData): Promise<ActionState> {
+export async function updatePlayerName(roomCode: string, prevState: ActionResponse, formData: FormData): Promise<ActionResponse> {
     const userId = (await cookies()).get("user_id")?.value;
     const username = formData.get("username");
     const key = `room:${roomCode}`;
     try {
         await redis.hset(key, { [`p:${userId}:name`]: username });
-        return { message: "Name changed successfully" }
+        return { success: true, message: "Name changed successfully" }
     } catch (error) {
         if (error instanceof Error) {
-            return { message: error.message }
+            return { success: false, error: error.message }
         } else {
-            return { error: String(error) }
+            return { success: false, error: String(error) }
         }
     }
 }

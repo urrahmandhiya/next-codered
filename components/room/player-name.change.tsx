@@ -11,7 +11,7 @@ import { mutate } from "swr";
 
 export default function PlayerNameChange({ roomCode, players }: { roomCode: string, players: Player[] }) {
     const updatePlayerNameWithRoomKey = updatePlayerName.bind(null, roomCode)
-    const [state, formAction, isPending] = useActionState(updatePlayerNameWithRoomKey, { message: null, error: null })
+    const [state, formAction, isPending] = useActionState(updatePlayerNameWithRoomKey, null)
 
     const userId = useUserCookies();
     const player = players.filter(player => player.id === userId)[0];
@@ -19,7 +19,7 @@ export default function PlayerNameChange({ roomCode, players }: { roomCode: stri
 
     useEffect(() => {
         const handleToast = () => {
-            if (state.message) {
+            if (state?.success) {
                 mutate(roomCode)
                 toast(state.message, {position: "top-center", duration: 3000})
             }
