@@ -1,11 +1,7 @@
-export interface ActionState {
-    message?: string | null;
-    error?: string | null;
-}
-
 export type ActionResponse =
-    | { success: null; error: string }
-    | { success: string; error: null };
+    | { success: true; message: string}
+    | { success: false; error: string; message?: string}
+    | null;
 
 export interface Room {
     roomStatus: string;
@@ -25,7 +21,7 @@ export interface Player {
     role: string;
 }
 
-export type RoomMetaData = {
+type RoomMetaData = {
     roomStatus: string; // implement enums later
     roomHostId: string;
     maxPlayersInRoom: number;
@@ -37,13 +33,9 @@ type DynamicFields = {
     [key: string]: string | number;
 };
 
-export type Role = { 
-    name: string; 
-    amount: number 
-}
-
-export type ActivePlayersIds = {
-    id: string;
+export type Role = {
+    name: string;
+    amount: number
 }
 
 export type RedisRoom = RoomMetaData & DynamicFields;

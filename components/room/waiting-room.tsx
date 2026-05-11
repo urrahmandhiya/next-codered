@@ -50,7 +50,7 @@ export default function WaitingRoom({ roomCode }: { roomCode: string }) {
     const handleStartGame = () => {
         startTransition(async () => {
             const result = await startGame(roomCode);
-            if (result.error) {
+            if (result?.success === false) {
                 setAlertMessage(result.error)
             } else {
                 setIsStarting(true);

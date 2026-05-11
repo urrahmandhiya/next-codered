@@ -4,12 +4,12 @@ import { Redis } from "@upstash/redis";
 import { redirect } from "next/navigation";
 import { cookies } from "next/headers";
 import { revalidatePath } from "next/cache";
-import { ActionState } from "../definitions";
+import { ActionResponse } from "../definitions";
 
 const redis = Redis.fromEnv();
 const DEFAULT_MAX_NUMBER_OF_PLAYERS = 8;
 
-export async function createRoom(prevState: ActionState, formData: FormData): Promise<ActionState> {
+export async function createRoom(prevState: ActionResponse, formData: FormData): Promise<ActionResponse> {
     console.log("[createRoom] Action started");
     console.time("createRoom total");
     const hostId = crypto.randomUUID();
@@ -51,17 +51,17 @@ export async function createRoom(prevState: ActionState, formData: FormData): Pr
         console.timeEnd("createRoom total");
         if (error instanceof Error) {
             console.error("[createRoom] Error:", error.message);
-            return { message: error.message };
+            return { success: false, error: error.message };
         }
         console.error("[createRoom] Unknown Error:", error);
-        return { error: String(error) };
+        return { success: false, error: String(error) };
     }
     console.timeEnd("createRoom total");
     console.log("[createRoom] Success, redirecting to /room/", roomCode);
     redirect(`/room/${roomCode}`);
 }
 
-export async function joinRoom(prevState: ActionState, formData: FormData,): Promise<ActionState> {
+export async function joinRoom(prevState: ActionResponse, formData: FormData,): Promise<ActionResponse> {
     console.log("[joinRoom] Action started");
     console.time("joinRoom total");
     const userId = crypto.randomUUID();
@@ -127,10 +127,10 @@ export async function joinRoom(prevState: ActionState, formData: FormData,): Pro
         console.timeEnd("joinRoom total");
         if (error instanceof Error) {
             console.error("[joinRoom] Error:", error.message);
-            return { message: error.message };
+            return { success: false, error: error.message };
         }
         console.error("[joinRoom] Unknown Error:", error);
-        return { error: String(error) };
+        return { success: false, error: String(error) };
     }
 
     console.timeEnd("joinRoom total");

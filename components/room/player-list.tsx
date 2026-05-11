@@ -19,10 +19,11 @@ export default function PlayerList({ players, isHost, roomCode }: { players: Pla
     const handleDeletePlayer = (roomCode: string, playerId: string) => {
         startTransition(async () => {
             const result = await deletePlayer(roomCode, playerId)
-            if (result.error) {
+            if (result?.success === false) {
                 toast.error(result.error, { position: "top-center", duration: 3000 })
-            } else {
-                toast.success(result.success, { position: "top-center", duration: 3000 })
+            }
+            if (result?.success === true) {
+                toast.success(result.message, { position: "top-center", duration: 3000 })
                 mutate(roomCode);
             }
         })

@@ -10,15 +10,15 @@ import { Alert, AlertTitle } from "../ui/alert";
 import { AlertCircleIcon } from "lucide-react";
 
 export default function JoinRoomForm({ username, onBack }: { username: string, onBack: () => void }) {
-    const [state, formAction, isPending] = useActionState(joinRoom, { message: null, error: null })
+    const [state, formAction, isPending] = useActionState(joinRoom, null)
 
     return (
         <div className="flex flex-col gap-6">
-            {(state.error || state.message) && (
+            {(state?.success === false) && (
                 <Alert className="bg-red-950/50 border-red-900 text-red-200" variant="destructive">
                     <AlertCircleIcon className="w-4 h-4 text-red-400" />
                     <AlertTitle className="text-xs uppercase tracking-widest">
-                        {state.message || state.error}
+                        {state.error}
                     </AlertTitle>
                 </Alert>
             )}
