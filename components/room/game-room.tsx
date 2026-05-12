@@ -4,12 +4,14 @@ import { updateRoomState } from "@/lib/data";
 import useSWR from "swr";
 import { useUserCookies } from "./cookie-provider";
 import UpdateButton from "./update-button";
+import { useEffect, useState } from "react";
 
 const isDev = process.env.NEXT_PUBLIC_MODE === "DEV";
 
-export default function GameRoom({ roomCode }: {roomCode: string}) {
+export default function GameRoom({ roomCode }: { roomCode: string }) {
+    const [duration, setDuration] = useState(10); // will not go more than 5 minutes
     const userId = useUserCookies();
-    const { data, mutate} = useSWR(roomCode, updateRoomState, {
+    const { data, mutate } = useSWR(roomCode, updateRoomState, {
         refreshInterval: isDev ? 0 : 5000,
         revalidateOnFocus: false,
         revalidateOnReconnect: false,
@@ -18,16 +20,46 @@ export default function GameRoom({ roomCode }: {roomCode: string}) {
     const players = data?.players as Player[];
     const player = players.filter(player => player.id == String(userId))[0];
     const role = player.role;
+
+    useEffect(() => {
+        const id = setInterval(() => {
+            setDuration((prev) => {
+                if (prev < 1) {
+                    clearInterval(id);
+                    return 0;
+                }
+                return prev - 1;
+            })
+        }, 1000)
+        return () => clearInterval(id);
+    }, [])
+
+    const minutes = String(Math.floor(duration / 60)).padStart(2, "0");
+    const seconds = String(duration % 60).padStart(2, "0");
+
     return (
         <>
-        {isDev && <UpdateButton onUpdate={() => mutate()}/>}
-        <Card>
-            <CardContent>
-                <p>You are: {player && player.name}</p>
-                <p>Your Role is: {role}</p>
-                <p>This is the game room</p>
-            </CardContent>
-        </Card>
+            {isDev && <UpdateButton onUpdate={() => mutate()} />}
+            <Card>
+                <CardContent>
+                    <div className="flex">
+                        <div>
+                            <span>{minutes[0]}</span><span>{minutes[1]}</span>
+                        </div>
+                        <div>:</div>
+                        <div>
+                            <span>{seconds[0]}</span><span>{seconds[1]}</span>
+                        </div>
+                    </div>
+                </CardContent>
+            </Card>
+            <Card>
+                <CardContent>
+                    <p>You are: {player && player.name}</p>
+                    <p>Your Role is: {role}</p>
+                    <p>This is the game room</p>
+                </CardContent>
+            </Card>
         </>
     );
 }
