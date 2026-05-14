@@ -79,10 +79,10 @@ export default function WaitingRoom({ roomCode }: { roomCode: string }) {
     }
 
     return (
-        <div className="flex flex-col items-center justify-between w-full h-full max-w-2xl px-4 py-6 overflow-hidden">
+        <div className="flex flex-col items-center justify-between w-full h-full max-w-2xl md:max-w-5xl px-4 py-6 md:py-12 overflow-hidden">
             
             {/* Top Section */}
-            <div className="flex flex-col items-center gap-8 w-full">
+            <div className="flex flex-col items-center gap-6 md:gap-10 w-full">
                 {/* Header */}
                 <div className="text-center space-y-1">
                     <h2 className="text-[10px] sm:text-xs font-mono tracking-[0.3em] text-cyan uppercase opacity-80 text-glow-cyan">
@@ -93,30 +93,30 @@ export default function WaitingRoom({ roomCode }: { roomCode: string }) {
                 {/* Room Code Card */}
                 <button 
                     onClick={copyCode}
-                    className="group relative flex flex-col items-center justify-center gap-3 px-12 py-6 rounded-[2.5rem] bg-black border-2 border-cyan/40 border-glow-cyan hover:border-cyan/60 transition-all active:scale-[0.98]"
+                    className="group relative flex flex-col items-center justify-center gap-3 px-12 py-6 md:px-32 md:py-8 w-full md:w-auto md:min-w-[500px] rounded-[2.5rem] md:rounded-2xl bg-black border-2 border-cyan/40 border-glow-cyan hover:border-cyan/60 transition-all active:scale-[0.98]"
                 >
-                    <div className="flex items-center gap-4">
-                        <span className="text-4xl sm:text-5xl font-mono font-bold text-white tracking-wider text-glow-cyan">
+                    <div className="flex items-center gap-8">
+                        <span className="text-4xl sm:text-5xl md:text-6xl font-mono font-bold text-white tracking-[0.2em] text-glow-cyan">
                             {roomCode}
                         </span>
-                        <div className="p-2 rounded-lg bg-cyan/10 text-cyan">
-                            {copied ? <Check className="size-5" /> : <Copy className="size-5" />}
+                        <div className="p-2 md:p-3 rounded-lg bg-cyan/10 text-cyan">
+                            {copied ? <Check className="size-6" /> : <Copy className="size-6" />}
                         </div>
                     </div>
-                    <span className="text-[10px] font-mono tracking-widest text-zinc-500 uppercase group-hover:text-cyan/70 transition-colors">
+                    <span className="text-[10px] md:text-xs font-mono tracking-[0.3em] text-zinc-500 uppercase group-hover:text-cyan/70 transition-colors">
                         Tap to copy access code
                     </span>
                 </button>
             </div>
 
             {/* Middle Section (Players) */}
-            <div className="w-full flex-1 flex flex-col justify-start max-h-[50vh] py-2">
-                <div className="space-y-4">
+            <div className="w-full flex-1 flex flex-col justify-center max-h-[50vh] md:max-h-[60vh] py-4 md:py-10">
+                <div className="space-y-6 md:space-y-8 w-full">
                     <div className="flex items-center justify-between">
-                        <h3 className="text-sm font-mono font-bold tracking-[0.2em] text-white uppercase">
+                        <h3 className="text-sm md:text-base font-mono font-bold tracking-[0.2em] text-white uppercase">
                             Connected Nodes
                         </h3>
-                        <span className="text-sm font-mono text-cyan/80">
+                        <span className="text-sm md:text-base font-mono text-cyan/80">
                             {playersInRoom}/{maxPlayersInRoom}
                         </span>
                     </div>
@@ -129,19 +129,19 @@ export default function WaitingRoom({ roomCode }: { roomCode: string }) {
                         </Alert>
                     }
 
-                    <div className="py-2">
+                    <div className="py-2 md:py-6">
                         <PlayerList players={players} isHost={isHost} roomCode={roomCode} maxPlayers={maxPlayersInRoom} />
                     </div>
                 </div>
             </div>
 
             {/* Bottom Section */}
-            <div className="flex flex-col items-center gap-6 w-full pt-4">
-                <div className="flex items-center gap-4 w-full sm:w-auto">
+            <div className="flex flex-col items-center gap-6 w-full pt-4 md:pt-12">
+                <div className="flex items-center gap-4 md:gap-10 w-full md:w-full md:max-w-4xl justify-center">
                     <Button 
                         onClick={handleStartGame} 
                         disabled={isPending || !isHost || isStarting}
-                        className="flex-1 sm:flex-none h-16 px-12 rounded-full bg-cyan text-black font-bold text-lg hover:bg-cyan/90 border-glow-cyan disabled:opacity-50 disabled:bg-cyan/30 transition-all shadow-[0_0_20px_var(--color-cyan-glow)]"
+                        className="flex-1 md:flex-none h-16 md:h-20 px-12 md:w-full md:max-w-xl rounded-full md:rounded-2xl bg-cyan text-black font-bold text-lg md:text-xl hover:bg-cyan/90 border-glow-cyan disabled:opacity-50 disabled:bg-cyan/30 transition-all shadow-[0_0_30px_var(--color-cyan-glow)] active:scale-95"
                     >
                         {isPending || isStarting ? <Spinner className="text-black" /> : "START GAME"}
                     </Button>
@@ -150,9 +150,9 @@ export default function WaitingRoom({ roomCode }: { roomCode: string }) {
                         variant="outline"
                         size="icon"
                         onClick={() => setShowSettings(true)}
-                        className="size-16 rounded-full border-2 border-zinc-800 bg-black text-zinc-400 hover:text-cyan hover:border-cyan/50 hover:border-glow-cyan transition-all"
+                        className="size-16 md:size-20 rounded-full md:rounded-2xl border-2 border-zinc-800 bg-black text-zinc-400 hover:text-cyan hover:border-cyan/50 hover:border-glow-cyan transition-all flex-shrink-0"
                     >
-                        <Settings className="size-7" />
+                        <Settings className="size-7 md:size-8" />
                     </Button>
                 </div>
             </div>
@@ -160,14 +160,14 @@ export default function WaitingRoom({ roomCode }: { roomCode: string }) {
             {/* Settings Overlay/Modal Logic */}
             {showSettings && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
-                    <div className="w-full max-w-lg bg-zinc-950 border border-zinc-800 rounded-3xl p-6 shadow-2xl overflow-y-auto max-h-[90vh]">
-                        <div className="flex justify-between items-center mb-6">
-                            <h2 className="text-xl font-bold text-white">Room Settings</h2>
-                            <Button variant="ghost" size="icon" onClick={() => setShowSettings(false)}>
-                                <Check className="size-5" />
+                    <div className="w-full max-w-lg md:max-w-2xl bg-zinc-950 border border-zinc-800 rounded-3xl p-6 md:p-10 shadow-2xl overflow-y-auto max-h-[90vh]">
+                        <div className="flex justify-between items-center mb-8">
+                            <h2 className="text-xl md:text-2xl font-bold text-white uppercase tracking-widest font-mono">Room Settings</h2>
+                            <Button variant="ghost" size="icon" onClick={() => setShowSettings(false)} className="text-zinc-500 hover:text-white">
+                                <Check className="size-6" />
                             </Button>
                         </div>
-                        <div className="space-y-8">
+                        <div className="space-y-10">
                             <PlayerNameChange roomCode={roomCode} players={players} />
                             {isHost && (
                                 <RoomSettings 
