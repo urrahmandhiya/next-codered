@@ -46,6 +46,8 @@
   --radius-2xl: calc(var(--radius) * 1.8);
   --radius-3xl: calc(var(--radius) * 2.2);
   --radius-4xl: calc(var(--radius) * 2.6);
+  --color-cyan: oklch(0.78 0.16 195);
+  --color-cyan-glow: oklch(0.78 0.16 195 / 40%);
 }
 
 :root {
@@ -148,5 +150,25 @@
 
   .border-glow-red {
     box-shadow: 0 0 20px rgba(220, 38, 38, 0.7), 0 0 40px rgba(220, 38, 38, 0.3);
+  }
+
+  .text-glow-cyan {
+    text-shadow: 0 0 8px var(--color-cyan-glow), 0 0 16px var(--color-cyan-glow);
+  }
+
+  .border-glow-cyan {
+    box-shadow: 0 0 20px var(--color-cyan-glow), inset 0 0 10px var(--color-cyan-glow);
+  }
+
+  .bg-cyber-dark {
+    background-color: oklch(0.12 0.02 210);
+  }
+
+  .bg-cyber-room {
+    background-color: #020617;
+    background-image: 
+      radial-gradient(circle at 50% 25%, oklch(0.4 0.15 200 / 15%) 0%, transparent 60%),
+      radial-gradient(circle at 50% 100%, oklch(0.78 0.16 195 / 12%) 0%, transparent 50%);
+    background-attachment: fixed;
   }
 }

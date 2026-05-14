@@ -8,7 +8,7 @@ export default async function Page() {
 
     return (
         <CookieProvider cookieValue={userCookie}>
-            <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
+            <div className="flex flex-col h-[100dvh] w-full items-center justify-center bg-cyber-room font-sans overflow-hidden">
                 <RoomManager />
             </div>
         </CookieProvider>
