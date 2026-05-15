@@ -28,24 +28,24 @@ export default function PlayerNameChange({ roomCode, players }: { roomCode: stri
     }, [state, roomCode])
 
     return (
-        <Card>
-            <CardContent>
-                <form action={formAction}>
-                    <div className="flex w-full justify-between gap-4">
-                        <Label htmlFor="username" className="sr-only">
-                            Username
-                        </Label>
-                        <Input
-                            className="text-xs"
-                            id="username"
-                            name="username"
-                            value={username}
-                            onChange={(e) => setUsername(e.target.value)}
-                        />
-                        <Button type="submit" variant="outline" disabled={isPending}>Confirm</Button>
-                    </div>
-                </form>
-            </CardContent>
-        </Card>
+        <form action={formAction}>
+            <div className="space-y-2">
+                <Label htmlFor="username" className="text-zinc-400 text-xs font-mono uppercase tracking-widest">
+                    Update Node Name
+                </Label>
+                <div className="flex w-full justify-between gap-4">
+                    <Input
+                        className="bg-black border-zinc-800 text-white font-mono focus:border-cyan transition-colors"
+                        id="username"
+                        name="username"
+                        value={username}
+                        onChange={(e) => setUsername(e.target.value)}
+                    />
+                    <Button type="submit" variant="outline" disabled={isPending} className="border-zinc-800 hover:border-cyan hover:text-cyan transition-all">
+                        {isPending ? "..." : "Update"}
+                    </Button>
+                </div>
+            </div>
+        </form>
     );
 }

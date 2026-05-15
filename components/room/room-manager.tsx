@@ -20,7 +20,7 @@ export default function RoomManager() {
     const roomStatus = data ? data.roomStatus : "waiting";
 
     return (
-        <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-around py-32 px-16 bg-white dark:bg-black">
+        <main className="flex flex-1 w-full max-w-4xl flex-col items-center justify-start py-12 px-4 bg-transparent">
             {roomStatus === "waiting" && <WaitingRoom roomCode={roomCode} />}
             {roomStatus === "playing" && <GameRoom roomCode={roomCode} />}
         </main>

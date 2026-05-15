@@ -1,69 +1,40 @@
-import { Badge } from "../ui/badge";
-import { Card, CardContent } from "../ui/card";
-import { ItemGroup, Item, ItemContent, ItemTitle, ItemActions } from "../ui/item";
 import { Player } from "@/lib/definitions";
-import { ScrollArea } from "../ui/scroll-area";
 import { useUserCookies } from "./cookie-provider";
-import { Button } from "../ui/button";
-import { XIcon } from "lucide-react";
-import { useTransition } from "react";
-import { deletePlayer } from "@/lib/actions/room";
-import { toast } from "sonner";
-import { mutate } from "swr";
+import { cn } from "@/lib/utils";
+import { Hourglass } from "lucide-react";
 
-export default function PlayerList({ players, isHost, roomCode }: { players: Player[], isHost: boolean, roomCode: string }) {
-    const [isPending, startTransition] = useTransition()
+export default function PlayerList({
+    players,
+    isHost,
+    roomCode,
+    maxPlayers = 12
+}: {
+    players: Player[],
+    isHost: boolean,
+    roomCode: string,
+    maxPlayers?: number
+}) {
     const descendingPlayers = [...(players ?? [])].sort((a, b) => a.createdAt - b.createdAt);
     const userId = useUserCookies();
 
-    const handleDeletePlayer = (roomCode: string, playerId: string) => {
-        startTransition(async () => {
-            const result = await deletePlayer(roomCode, playerId)
-            if (result?.success === false) {
-                toast.error(result.error, { position: "top-center", duration: 3000 })
-            }
-            if (result?.success === true) {
-                toast.success(result.message, { position: "top-center", duration: 3000 })
-                mutate(roomCode);
-            }
-        })
-    }
-
     return (
-        <Card>
-            <CardContent className="text-sm text-muted-foreground">
-                <ScrollArea className="h-48 w-full">
-                    <ItemGroup>
-                        {descendingPlayers.map((player) => (
-                            <Item key={player.id} variant="outline">
-                                <ItemContent>
-                                    <ItemTitle className="flex justify-between w-full">
-                                        {player.name}
-                                        <div className="flex gap-2 items-center">
-                                            {player.isHost && <Badge variant="outline">Host</Badge>}
-                                            {(isHost && player.id !== userId) &&
-                                                <ItemActions>
-                                                    <Button
-                                                        disabled={isPending}
-                                                        variant="destructive"
-                                                        size="xs"
-                                                        onClick={() => {
-                                                            handleDeletePlayer(roomCode, player.id)
-                                                        }}
-                                                    >
-                                                        <XIcon />
-                                                    </Button>
-                                                </ItemActions>
-                                            }
-                                        </div>
-                                    </ItemTitle>
-                                    {player.id === userId && <span className="text-xs">You</span>}
-                                </ItemContent>
-                            </Item>
-                        ))}
-                    </ItemGroup>
-                </ScrollArea>
-            </CardContent>
-        </Card>
+        <div className="flex flex-wrap gap-4 md:gap-6 justify-center w-full">
+            {descendingPlayers.map((player) => (
+                <div
+                    key={player.id}
+                    className={cn(
+                        "flex items-center gap-3 px-6 py-3 md:px-8 md:py-4 rounded-full border border-cyan/30 bg-cyan/5 border-glow-cyan transition-all",
+                        player.id === userId && "border-cyan/60 bg-cyan/10 ring-1 ring-cyan/20"
+                    )}
+                >
+                    <div className="size-2 md:size-3 rounded-full bg-cyan shadow-[0_0_8px_var(--color-cyan)]" />
+                    <span className="text-sm md:text-base font-medium text-cyan/90 tracking-wide">
+                        {player.name}
+                        {player.id === userId && <span className="ml-1 opacity-70">(You)</span>}
+                    </span>
+                </div>
+            ))}
+        </div>
     );
 }
+
