@@ -1,6 +1,7 @@
 "use server";
 
 import { Redis } from "@upstash/redis";
+import { Lock } from "@upstash/lock";
 import { cookies } from "next/headers";
 import { ActionResponse, RedisRoom, Role, Room } from "../definitions";
 import { revalidatePath } from "next/cache";
@@ -41,10 +42,12 @@ export async function getRoomState(roomCode: string): Promise<{ room: Room | nul
             .map((id) => {
                 const name = String(roomData[`p:${id}:name`]);
                 const createdAt = Number(roomData[`p:${id}:createdAt`]);
-                const role = String(roomData[`p:${id}:role`] ?? "none")
+                const lastSeen = Number(roomData[`p:${id}:lastSeen`] || createdAt);
+                const role = String(roomData[`p:${id}:role`] ?? "none");
                 return {
                     name,
                     createdAt,
+                    lastSeen,
                     role,
                     id: String(id),
                     isHost: String(id) === roomData.roomHostId,
@@ -54,6 +57,19 @@ export async function getRoomState(roomCode: string): Promise<{ room: Room | nul
         playersInRoom: roomData.playersInRoom,
         roles: roles,
     };
+
+    if (userId && activePlayersIds.includes(userId)) {
+        await redis.hset(`room:${roomCode}`, { [`p:${userId}:lastSeen`]: Date.now() });
+    }
+
+    if (room.roomStatus === "waiting") {
+        const now = Date.now();
+        for (const player of room.players) {
+            if (player.id !== userId && now - player.lastSeen > 12000) {
+                await deletePlayer(roomCode, player.id);
+            }
+        }
+    }
 
     return { room, userId };
 }
@@ -226,56 +242,54 @@ export async function updateRoomSettings(roomCode: string, prevState: ActionResp
 
 export async function deletePlayer(roomCode: string, id: string): Promise<ActionResponse> {
     const key = `room:${roomCode}`;
-    const script = `
-    local key = KEYS[1]
-    local playerId = ARGV[1]
-    local activePlayersIdsKey = key .. ':activePlayersIds'
+    const activePlayersIdsKey = `${key}:activePlayersIds`;
 
-    local playerName = 'p:' .. playerId .. ':name'
-    local playerCreatedAt = 'p:' .. playerId .. ':createdAt'
+    const lock = new Lock({
+        id: `lock:${key}`,
+        redis,
+        lease: 5000,
+    });
 
-    local roomMetaData = redis.call('HMGET', key, 'playersInRoom', 'roomStatus', playerName)
-
-    local playersInRoom = tonumber(roomMetaData[1])
-    local roomStatus = roomMetaData[2]
-    local deletedPlayerName = roomMetaData[3]
-
-    if roomStatus ~= "waiting" then
-      return 'GAME_IS_STARTNG'
-    end
-
-    local deletedPlayer = redis.call('HDEL', key, playerName, playerCreatedAt)
-    
-    if deletedPlayer == 2 then
-      local newCurrentPlayer = playersInRoom - 1
-      redis.call('HSET', key, 'playersInRoom', newCurrentPlayer)
-      redis.call('SREM', activePlayersIdsKey, playerId)
-      return deletedPlayerName
-    else
-      return "FAILED"
-    end
-  `;
+    const isLockAcquired = await lock.acquire();
+    if (!isLockAcquired) {
+        return { success: false, error: "Unable to delete player due to high traffic. Try again." };
+    }
 
     try {
-        const result = await redis.eval(script, [key], [id]);
-        switch (result) {
-            case "GAME_IS_STARTING":
-                throw new Error("Game is starting, cannot delete a player")
-
-            case "FAILED":
-                throw new Error("Failed to delete a player")
-
-            default:
-                break;
+        const roomData = await redis.hmget(key, "playersInRoom", "roomStatus", `p:${id}:name`);
+        if (!roomData) {
+            throw new Error("Room not found");
         }
-        revalidatePath(`/room/${roomCode}`)
-        return { success: true, message: `Player ${result} deleted successfully` }
+
+        const playersInRoom = Number(roomData.playersInRoom);
+        const roomStatus = String(roomData.roomStatus);
+        const deletedPlayerName = String(roomData[`p:${id}:name`]);
+
+        if (roomStatus !== "waiting") {
+            throw new Error("Game is starting, cannot delete a player");
+        }
+
+        const deletedFieldsCount = await redis.hdel(key, `p:${id}:name`, `p:${id}:createdAt`, `p:${id}:lastSeen`, `p:${id}:role`);
+        
+        if (deletedFieldsCount >= 2) {
+            const newCurrentPlayer = playersInRoom - 1;
+            const pipeline = redis.pipeline();
+            pipeline.hset(key, { playersInRoom: newCurrentPlayer });
+            pipeline.srem(activePlayersIdsKey, id);
+            await pipeline.exec();
+            
+            revalidatePath(`/room/${roomCode}`);
+            return { success: true, message: `Player ${deletedPlayerName} deleted successfully` };
+        } else {
+            throw new Error("Failed to delete a player");
+        }
     } catch (error) {
         if (error instanceof Error) {
-            return { success: false, error: error.message }
-        } else {
-            return { success: false, error: String(error) }
+            return { success: false, error: error.message };
         }
+        return { success: false, error: String(error) };
+    } finally {
+        await lock.release();
     }
 }
 

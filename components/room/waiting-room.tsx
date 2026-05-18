@@ -3,16 +3,17 @@
 import { Button } from "@/components/ui/button";
 import PlayerList from "./player-list";
 import { Skeleton } from "../ui/skeleton";
-import { startGame } from "@/lib/actions/room";
+import { startGame, deletePlayer } from "@/lib/actions/room";
 import RoomSettings from "./room-settings";
 import { useState, useTransition } from "react";
 import { Spinner } from "../ui/spinner";
 import { Alert, AlertTitle } from "../ui/alert";
-import { AlertCircleIcon, Copy, Settings, Check } from "lucide-react";
+import { AlertCircleIcon, Copy, Settings, Check, LogOut } from "lucide-react";
 import { Player } from "@/lib/definitions";
 import UpdateButton from "./update-button";
 import { updateRoomState } from "@/lib/data";
 import useSWR from "swr";
+import { useRouter } from "next/navigation";
 import { useUserCookies } from "./cookie-provider";
 import PlayerNameChange from "./player-name.change";
 import { cn } from "@/lib/utils";
@@ -27,6 +28,7 @@ export default function WaitingRoom({ roomCode }: { roomCode: string }) {
     const [isStarting, setIsStarting] = useState(false);
     const [showSettings, setShowSettings] = useState(false);
     const [copied, setCopied] = useState(false);
+    const router = useRouter();
 
     const { data, isLoading, mutate } = useSWR(roomCode, updateRoomState, {
         refreshInterval: isDev ? 0 : 5000,
@@ -54,6 +56,18 @@ export default function WaitingRoom({ roomCode }: { roomCode: string }) {
             }
         })
     }
+
+    const handleLeaveRoom = () => {
+        if (!userId) return;
+        startTransition(async () => {
+            const result = await deletePlayer(roomCode, userId);
+            if (result?.success === false) {
+                setAlertMessage(result.error);
+            } else {
+                router.push("/");
+            }
+        });
+    };
 
     const copyCode = () => {
         navigator.clipboard.writeText(roomCode);
@@ -138,6 +152,17 @@ export default function WaitingRoom({ roomCode }: { roomCode: string }) {
             {/* Bottom Section */}
             <div className="flex flex-col items-center gap-6 w-full pt-4 md:pt-12">
                 <div className="flex items-center gap-4 md:gap-10 w-full md:w-full md:max-w-4xl justify-center">
+                    <Button
+                        variant="outline"
+                        size="icon"
+                        onClick={handleLeaveRoom}
+                        disabled={isPending || isStarting}
+                        className="size-16 md:size-20 rounded-full md:rounded-2xl border-2 border-zinc-800 bg-black text-red-500 hover:text-red-400 hover:border-red-500/50 hover:shadow-[0_0_15px_rgba(239,68,68,0.3)] transition-all flex-shrink-0"
+                        title="Leave Room"
+                    >
+                        <LogOut className="size-6 md:size-7" />
+                    </Button>
+                    
                     <Button 
                         onClick={handleStartGame} 
                         disabled={isPending || !isHost || isStarting}
