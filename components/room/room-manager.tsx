@@ -6,12 +6,10 @@ import GameRoom from "./game-room";
 import { updateRoomState } from "@/lib/data";
 import useSWR from "swr";
 
-const isDev = process.env.NEXT_PUBLIC_MODE === "DEV";
-
 export default function RoomManager() {
     const roomCode = String(useParams().roomcode);
     const { data } = useSWR(roomCode, updateRoomState, {
-        refreshInterval: isDev ? 0 : 5000,
+        refreshInterval: 3000,
         revalidateOnFocus: false,
         revalidateOnReconnect: false,
         revalidateIfStale: false,
