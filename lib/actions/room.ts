@@ -256,13 +256,14 @@ export async function deletePlayer(roomCode: string, id: string): Promise<Action
     }
 
     try {
-        const roomData = await redis.hmget(key, "playersInRoom", "roomStatus", `p:${id}:name`);
+        const roomData = await redis.hmget(key, "playersInRoom", "roomStatus", "roomHostId", `p:${id}:name`);
         if (!roomData) {
             throw new Error("Room not found");
         }
 
         const playersInRoom = Number(roomData.playersInRoom);
         const roomStatus = String(roomData.roomStatus);
+        const roomHostId = String(roomData.roomHostId);
         const deletedPlayerName = String(roomData[`p:${id}:name`]);
 
         if (roomStatus !== "waiting") {
@@ -274,8 +275,44 @@ export async function deletePlayer(roomCode: string, id: string): Promise<Action
         if (deletedFieldsCount >= 2) {
             const newCurrentPlayer = playersInRoom - 1;
             const pipeline = redis.pipeline();
+            
+            if (newCurrentPlayer <= 0) {
+                // Room is empty, delete it entirely
+                pipeline.del(key);
+                pipeline.del(activePlayersIdsKey);
+                await pipeline.exec();
+                
+                revalidatePath(`/room/${roomCode}`);
+                return { success: true, message: `Room deleted as the last player left` };
+            }
+
+            // Room still has players
             pipeline.hset(key, { playersInRoom: newCurrentPlayer });
             pipeline.srem(activePlayersIdsKey, id);
+
+            if (id === roomHostId) {
+                // Host left, promote the oldest remaining player
+                const remainingIds = (await redis.smembers(activePlayersIdsKey)).filter(pId => pId !== id);
+                if (remainingIds.length > 0) {
+                    const fieldsToGet = remainingIds.map(pId => `p:${pId}:createdAt`);
+                    const createdTimes = await redis.hmget(key, ...fieldsToGet) as Record<string, string>;
+                    
+                    let nextHostId = remainingIds[0];
+                    let minCreatedAt = Infinity;
+                    
+                    remainingIds.forEach((pId) => {
+                        const fieldName = `p:${pId}:createdAt`;
+                        const cTime = Number(createdTimes[fieldName] || Infinity);
+                        if (cTime < minCreatedAt) {
+                            minCreatedAt = cTime;
+                            nextHostId = pId;
+                        }
+                    });
+                    
+                    pipeline.hset(key, { roomHostId: nextHostId });
+                }
+            }
+            
             await pipeline.exec();
             
             revalidatePath(`/room/${roomCode}`);
