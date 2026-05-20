@@ -14,8 +14,16 @@ export default function PlayerNameChange({ roomCode, players }: { roomCode: stri
     const [state, formAction, isPending] = useActionState(updatePlayerNameWithRoomKey, null)
 
     const userId = useUserCookies();
-    const player = players.filter(player => player.id === userId)[0];
-    const [username, setUsername] = useState(player.name)
+    const player = players.find((p) => p.id === userId);
+    const [username, setUsername] = useState(player?.name || "");
+
+    useEffect(() => {
+        if (player) {
+            setUsername(player.name);
+        }
+    }, [player]);
+
+    if (!player) return null;
 
     useEffect(() => {
         const handleToast = () => {

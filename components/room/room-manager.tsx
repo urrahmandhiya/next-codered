@@ -6,23 +6,26 @@ import GameRoom from "./game-room";
 import { updateRoomState } from "@/lib/data";
 import useSWR from "swr";
 import { useUserCookies } from "./cookie-provider";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { Player } from "@/lib/definitions";
 
 export default function RoomManager() {
     const roomCode = String(useParams().roomcode);
     const router = useRouter();
     const userId = useUserCookies();
+    const [hasFetched, setHasFetched] = useState(false);
 
-    const { data, error, isLoading } = useSWR(roomCode, updateRoomState, {
+    const { data, error } = useSWR(roomCode, updateRoomState, {
         refreshInterval: 3000,
         revalidateOnFocus: false,
         revalidateOnReconnect: false,
-        revalidateIfStale: false,
+        revalidateIfStale: true,
+        onSuccess: () => setHasFetched(true),
+        onError: () => setHasFetched(true),
     });
 
     useEffect(() => {
-        if (isLoading) return;
+        if (!hasFetched) return;
 
         const isRoomInvalid = error;
         const isPlayerMissing = data && !data.players.some((p: Player) => p.id === userId);
@@ -30,7 +33,7 @@ export default function RoomManager() {
         if (isRoomInvalid || isPlayerMissing) {
             router.push("/");
         }
-    }, [data, error, isLoading, userId, router]);
+    }, [data, error, hasFetched, userId, router]);
 
     const roomStatus = data ? data.roomStatus : "waiting";
 
