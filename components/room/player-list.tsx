@@ -54,11 +54,16 @@ export default function PlayerList({
                             isStale ? "bg-yellow-500 text-yellow-500" : "bg-cyan text-cyan"
                         )} />
                         <span className={cn(
-                            "text-sm md:text-base font-medium tracking-wide",
+                            "text-sm md:text-base font-medium tracking-wide flex items-center",
                             isStale ? "text-yellow-500/90" : "text-cyan/90"
                         )}>
                             {player.name}
                             {player.id === userId && <span className="ml-1 opacity-70">(You)</span>}
+                            {player.isHost && (
+                                <span className="ml-2 text-[10px] md:text-xs font-bold uppercase tracking-wider text-zinc-400 bg-zinc-800/50 border border-zinc-700/50 px-2 py-0.5 rounded-md">
+                                    Host
+                                </span>
+                            )}
                         </span>
 
                         {isHost && player.id !== userId && (
