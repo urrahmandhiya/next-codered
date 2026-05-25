@@ -8,7 +8,7 @@ import RoomSettings from "./room-settings";
 import { useState, useTransition } from "react";
 import { Spinner } from "../ui/spinner";
 import { Alert, AlertTitle } from "../ui/alert";
-import { AlertCircleIcon, Copy, Settings, Check, LogOut } from "lucide-react";
+import { AlertCircleIcon, Copy, Settings, Check, LogOut, X } from "lucide-react";
 import { Player } from "@/lib/definitions";
 import UpdateButton from "./update-button";
 import { updateRoomState } from "@/lib/data";
@@ -184,25 +184,34 @@ export default function WaitingRoom({ roomCode }: { roomCode: string }) {
 
             {/* Settings Overlay/Modal Logic */}
             {showSettings && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
-                    <div className="w-full max-w-lg md:max-w-2xl bg-zinc-950 border border-zinc-800 rounded-3xl p-6 md:p-10 shadow-2xl overflow-y-auto max-h-[90vh]">
-                        <div className="flex justify-between items-center mb-8">
-                            <h2 className="text-xl md:text-2xl font-bold text-white uppercase tracking-widest font-mono">Room Settings</h2>
-                            <Button variant="ghost" size="icon" onClick={() => setShowSettings(false)} className="text-zinc-500 hover:text-white">
-                                <Check className="size-6" />
+                <div 
+                    className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm"
+                    onClick={() => setShowSettings(false)}
+                >
+                    <div 
+                        className="w-full flex flex-col gap-8 max-w-lg md:max-w-2xl bg-black/80 backdrop-blur-xl border border-cyan/30 rounded-3xl p-6 md:p-10 shadow-[0_0_40px_rgba(6,182,212,0.15)] border-glow-cyan overflow-y-auto max-h-[90vh]"
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        <div className="flex justify-between items-center">
+                            <h2 className="text-xl md:text-2xl font-bold text-white uppercase tracking-widest font-mono text-glow-cyan">Room Settings</h2>
+                            <Button variant="ghost" size="icon" onClick={() => setShowSettings(false)} className="text-zinc-400 hover:text-cyan hover:bg-cyan/10 rounded-full transition-colors">
+                                <X className="size-6 md:size-7" />
                             </Button>
                         </div>
-                        <div className="space-y-10">
-                            <PlayerNameChange roomCode={roomCode} players={players} />
-                            {isHost && (
+                        
+                        <PlayerNameChange roomCode={roomCode} players={players} />
+                        
+                        {isHost && (
+                            <>
+                                <Separator className="bg-cyan/20" />
                                 <RoomSettings 
                                     maxPlayersInRoom={maxPlayersInRoom} 
                                     roomCode={roomCode} 
                                     roles={roles} 
                                     totalRoles={totalRoles} 
                                 />
-                            )}
-                        </div>
+                            </>
+                        )}
                     </div>
                 </div>
             )}
