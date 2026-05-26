@@ -1,6 +1,7 @@
 "use server";
 
 import { Redis } from "@upstash/redis";
+import { Lock } from "@upstash/lock";
 import { cookies } from "next/headers";
 import { ActionResponse, RedisRoom, Role, Room } from "../definitions";
 import { revalidatePath } from "next/cache";
@@ -41,10 +42,12 @@ export async function getRoomState(roomCode: string): Promise<{ room: Room | nul
             .map((id) => {
                 const name = String(roomData[`p:${id}:name`]);
                 const createdAt = Number(roomData[`p:${id}:createdAt`]);
-                const role = String(roomData[`p:${id}:role`] ?? "none")
+                const lastSeen = Number(roomData[`p:${id}:lastSeen`] || createdAt);
+                const role = String(roomData[`p:${id}:role`] ?? "none");
                 return {
                     name,
                     createdAt,
+                    lastSeen,
                     role,
                     id: String(id),
                     isHost: String(id) === roomData.roomHostId,
@@ -55,227 +58,242 @@ export async function getRoomState(roomCode: string): Promise<{ room: Room | nul
         roles: roles,
     };
 
+    if (userId && activePlayersIds.includes(userId)) {
+        await redis.hset(`room:${roomCode}`, { [`p:${userId}:lastSeen`]: Date.now() });
+    }
+
+    if (room.roomStatus === "waiting") {
+        const now = Date.now();
+        for (const player of room.players) {
+            if (player.id !== userId && now - player.lastSeen > 12000) {
+                await deletePlayer(roomCode, player.id);
+            }
+        }
+    }
+
     return { room, userId };
 }
 
 export async function startGame(roomCode: string): Promise<ActionResponse> {
     const key = `room:${roomCode}`;
-    const jsonRoles = JSON.stringify(CURRENT_ROLES.map((role) => `r:${role}`));
-    const script = `
-    local key = KEYS[1]
-    local activePlayersIdsKey = key .. ':activePlayersIds'
-    local MINIMAL_CURRENTPLAYERS = ARGV[1]
+    const activePlayersIdsKey = `${key}:activePlayersIds`;
 
-    local roomMetaData = redis.call('HGET', key, 'playersInRoom')
-    
-    local playersInRoom = tonumber(roomMetaData)
-    local minimumPlayers = tonumber(MINIMAL_CURRENTPLAYERS)
-    
-    if playersInRoom < minimumPlayers then
-       return 'INSUFFICIENT_PLAYERS'
-    end
+    const lock = new Lock({
+        id: `lock:${key}`,
+        redis,
+        lease: 5000,
+    });
 
-    local isRoleExist = redis.call('HEXISTS', key, 'r:werewolf')
-
-    if isRoleExist == 0 then
-        return 'ROLE_IS_NOT_CONFIGURED'
-    end
-
-    local rolesFields = cjson.decode(ARGV[2])
-    local roles = redis.call('HMGET', key, unpack(rolesFields))
-    local totalRoles = 0
-
-    for field, value in pairs(roles) do
-        totalRoles = totalRoles + tonumber(value)
-    end
-    
-    if playersInRoom ~= totalRoles then
-        return 'ROLES_AND_PLAYERS_AMOUNT_MISMATCHED'
-    end
-    
-    local playersIds = redis.call('SMEMBERS', activePlayersIdsKey)
-
-    -- shuffle the playersIds --
-    for i = #playersIds, 2, -1 do
-        local j = math.random(i)
-        playersIds[i], playersIds[j] = playersIds[j], playersIds[i]
-    end
-
-    local initialGameState = {}
-    
-    local playerIdsIndex = 0
-    for index, amount in pairs(roles) do
-        for i=1, tonumber(amount) do
-            playerIdsIndex = playerIdsIndex + 1
-            table.insert(initialGameState, 'p:' .. playersIds[playerIdsIndex] .. ':role')
-            table.insert(initialGameState, string.sub(rolesFields[index], 3))
-        end
-    end
-
-    local newRoomStatus = {['roomStatus'] = 'playing'}
-    for k, v in pairs(newRoomStatus) do
-        table.insert(initialGameState, k)
-        table.insert(initialGameState, v)
-    end
-
-    redis.call('HSET', key, unpack(initialGameState))
-    return 'playing'
-  `;
+    const isLockAcquired = await lock.acquire();
+    if (!isLockAcquired) {
+        return { success: false, error: "Unable to start game due to high traffic. Try again." };
+    }
 
     try {
-        const result = await redis.eval(script, [key], [MINIMAL_CURRENTPLAYERS, jsonRoles]);
-
-        switch (result) {
-            case "INSUFFICIENT_PLAYERS":
-                throw new Error(
-                    `Insufficient players. Minimal number of players to start the game is ${MINIMAL_CURRENTPLAYERS}`,
-                );
-
-            case "ROLES_AND_PLAYERS_AMOUNT_MISMATCHED":
-                throw new Error(
-                    "Number of players and total roles are mismatched. Ask the host to configure it",
-                );
-
-            case "ROLE_IS_NOT_CONFIGURED":
-                throw new Error(
-                    "Roles amount is not configured. Ask the host to configure it",
-                );
-
-            default:
-                break;
+        const rolesFields = CURRENT_ROLES.map((role) => `r:${role}`);
+        const roomData = await redis.hmget(key, "playersInRoom", "roomStatus", ...rolesFields) as Record<string, string> | null;
+        
+        if (!roomData) {
+            throw new Error("Room not found");
         }
 
-        return { success: true, message: String(result) };
+        const playersInRoom = Number(roomData.playersInRoom || 0);
+        if (playersInRoom < MINIMAL_CURRENTPLAYERS) {
+            throw new Error(`Insufficient players. Minimal number of players to start the game is ${MINIMAL_CURRENTPLAYERS}`);
+        }
+
+        if (roomData["r:werewolf"] === undefined || roomData["r:werewolf"] === null) {
+            throw new Error("Roles amount is not configured. Ask the host to configure it");
+        }
+
+        let totalRoles = 0;
+        for (const roleField of rolesFields) {
+            totalRoles += Number(roomData[roleField] || 0);
+        }
+
+        if (playersInRoom !== totalRoles) {
+            throw new Error("Number of players and total roles are mismatched. Ask the host to configure it");
+        }
+
+        const playersIds = await redis.smembers(activePlayersIdsKey);
+        if (!playersIds || playersIds.length === 0) {
+            throw new Error("No players in the room");
+        }
+
+        const shuffledPlayers = [...playersIds];
+        for (let i = shuffledPlayers.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [shuffledPlayers[i], shuffledPlayers[j]] = [shuffledPlayers[j], shuffledPlayers[i]];
+        }
+
+        const initialGameState: Record<string, string | number> = {
+            roomStatus: "playing",
+        };
+
+        let playerIdx = 0;
+        for (const role of CURRENT_ROLES) {
+            const amount = Number(roomData[`r:${role}`] || 0);
+            for (let i = 0; i < amount; i++) {
+                if (playerIdx < shuffledPlayers.length) {
+                    initialGameState[`p:${shuffledPlayers[playerIdx]}:role`] = role;
+                    playerIdx++;
+                }
+            }
+        }
+
+        await redis.hset(key, initialGameState);
+        return { success: true, message: "playing" };
     } catch (error) {
         if (error instanceof Error) {
             return { success: false, error: error.message };
-        } else {
-            return { success: false, error: String(error) };
         }
+        return { success: false, error: String(error) };
+    } finally {
+        await lock.release();
     }
 }
 
 export async function updateRoomSettings(roomCode: string, prevState: ActionResponse, formData: FormData): Promise<ActionResponse> {
     const key = `room:${roomCode}`;
-    const playerCapacity = formData.get("player-cap");
-    const roles = CURRENT_ROLES.map((role) => ({ [`${role}`]: formData.get(`${role}-amount`) }));
-    const jsonRoles = JSON.stringify(Object.assign({}, ...roles));
+    const playerCapacity = Number(formData.get("player-cap") || 0);
 
-    const script = `
-    local key = KEYS[1]
-    local playerCapacity = ARGV[1]
-    local newMaxPlayersInRoom = tonumber(playerCapacity)
+    const lock = new Lock({
+        id: `lock:${key}`,
+        redis,
+        lease: 5000,
+    });
 
-    local roomMetaData = redis.call('HMGET', key, 'playersInRoom', 'roomStatus')
-
-    local playersInRoom = tonumber(roomMetaData[1])
-    local roomStatus = roomMetaData[2]
-
-    if roomStatus ~= "waiting" then
-      return "GAME_IS_STARTING"
-    end
-
-    if newMaxPlayersInRoom < playersInRoom then
-      return "PLAYER_IN_ROOM_EXCEEDS_NEW_CAPACITY"
-    end
-
-    local newRoomSettings = {["maxPlayersInRoom"] = tonumber(newMaxPlayersInRoom)}
-    local roles = cjson.decode(ARGV[2])
-    local flat_table = {};
-
-    for k, v in pairs(newRoomSettings) do
-        roles[k] = v
-    end
-
-    for field, value in pairs(roles) do
-        if field == "maxPlayersInRoom" then
-            table.insert(flat_table, field)
-            table.insert(flat_table, tonumber(value))
-        else
-            table.insert(flat_table, "r:" .. field)
-            table.insert(flat_table, tonumber(value))
-        end
-    end
-
-    redis.call('HSET', key, unpack(flat_table))
-    return "SUCCESS"
-    `;
+    const isLockAcquired = await lock.acquire();
+    if (!isLockAcquired) {
+        return { success: false, error: "Unable to update room settings due to high traffic. Try again." };
+    }
 
     try {
-        const result = await redis.eval(script, [key], [playerCapacity, jsonRoles])
-        switch (result) {
-            case "GAME_IS_STARTING":
-                throw new Error("Game is starting, unable to change room settings now")
-
-            case "PLAYER_IN_ROOM_EXCEEDS_NEW_CAPACITY":
-                throw new Error("Number of players in room exceeds new capacity")
-
-            default:
-                break;
+        const roomData = await redis.hmget(key, "playersInRoom", "roomStatus") as Record<string, string> | null;
+        if (!roomData) {
+            throw new Error("Room not found");
         }
-        revalidatePath(`/room/${roomCode}`)
-        return { success: true, message: "Room settings changed" }
+
+        const playersInRoom = Number(roomData.playersInRoom || 0);
+        const roomStatus = String(roomData.roomStatus);
+
+        if (roomStatus !== "waiting") {
+            throw new Error("Game is starting, unable to change room settings now");
+        }
+
+        if (playerCapacity < playersInRoom) {
+            throw new Error("Number of players in room exceeds new capacity");
+        }
+
+        const updates: Record<string, number> = {
+            maxPlayersInRoom: playerCapacity,
+        };
+
+        for (const role of CURRENT_ROLES) {
+            const amount = Number(formData.get(`${role}-amount`) || 0);
+            updates[`r:${role}`] = amount;
+        }
+
+        await redis.hset(key, updates);
+        revalidatePath(`/room/${roomCode}`);
+        return { success: true, message: "Room settings changed" };
     } catch (error) {
         if (error instanceof Error) {
             return { success: false, error: error.message };
-        } else {
-            return { success: false, error: String(error) };
         }
+        return { success: false, error: String(error) };
+    } finally {
+        await lock.release();
     }
 }
 
 export async function deletePlayer(roomCode: string, id: string): Promise<ActionResponse> {
     const key = `room:${roomCode}`;
-    const script = `
-    local key = KEYS[1]
-    local playerId = ARGV[1]
-    local activePlayersIdsKey = key .. ':activePlayersIds'
+    const activePlayersIdsKey = `${key}:activePlayersIds`;
 
-    local playerName = 'p:' .. playerId .. ':name'
-    local playerCreatedAt = 'p:' .. playerId .. ':createdAt'
+    const lock = new Lock({
+        id: `lock:${key}`,
+        redis,
+        lease: 5000,
+    });
 
-    local roomMetaData = redis.call('HMGET', key, 'playersInRoom', 'roomStatus', playerName)
-
-    local playersInRoom = tonumber(roomMetaData[1])
-    local roomStatus = roomMetaData[2]
-    local deletedPlayerName = roomMetaData[3]
-
-    if roomStatus ~= "waiting" then
-      return 'GAME_IS_STARTNG'
-    end
-
-    local deletedPlayer = redis.call('HDEL', key, playerName, playerCreatedAt)
-    
-    if deletedPlayer == 2 then
-      local newCurrentPlayer = playersInRoom - 1
-      redis.call('HSET', key, 'playersInRoom', newCurrentPlayer)
-      redis.call('SREM', activePlayersIdsKey, playerId)
-      return deletedPlayerName
-    else
-      return "FAILED"
-    end
-  `;
+    const isLockAcquired = await lock.acquire();
+    if (!isLockAcquired) {
+        return { success: false, error: "Unable to delete player due to high traffic. Try again." };
+    }
 
     try {
-        const result = await redis.eval(script, [key], [id]);
-        switch (result) {
-            case "GAME_IS_STARTING":
-                throw new Error("Game is starting, cannot delete a player")
-
-            case "FAILED":
-                throw new Error("Failed to delete a player")
-
-            default:
-                break;
+        const roomData = await redis.hmget(key, "playersInRoom", "roomStatus", "roomHostId", `p:${id}:name`);
+        if (!roomData) {
+            throw new Error("Room not found");
         }
-        revalidatePath(`/room/${roomCode}`)
-        return { success: true, message: `Player ${result} deleted successfully` }
+
+        const playersInRoom = Number(roomData.playersInRoom);
+        const roomStatus = String(roomData.roomStatus);
+        const roomHostId = String(roomData.roomHostId);
+        const deletedPlayerName = String(roomData[`p:${id}:name`]);
+
+        if (roomStatus !== "waiting") {
+            throw new Error("Game is starting, cannot delete a player");
+        }
+
+        const deletedFieldsCount = await redis.hdel(key, `p:${id}:name`, `p:${id}:createdAt`, `p:${id}:lastSeen`, `p:${id}:role`);
+        
+        if (deletedFieldsCount >= 2) {
+            const newCurrentPlayer = playersInRoom - 1;
+            const pipeline = redis.pipeline();
+            
+            if (newCurrentPlayer <= 0) {
+                // Room is empty, delete it entirely
+                pipeline.del(key);
+                pipeline.del(activePlayersIdsKey);
+                await pipeline.exec();
+                
+                revalidatePath(`/room/${roomCode}`);
+                return { success: true, message: `Room deleted as the last player left` };
+            }
+
+            // Room still has players
+            pipeline.hset(key, { playersInRoom: newCurrentPlayer });
+            pipeline.srem(activePlayersIdsKey, id);
+
+            if (id === roomHostId) {
+                // Host left, promote the oldest remaining player
+                const remainingIds = (await redis.smembers(activePlayersIdsKey)).filter(pId => pId !== id);
+                if (remainingIds.length > 0) {
+                    const fieldsToGet = remainingIds.map(pId => `p:${pId}:createdAt`);
+                    const createdTimes = await redis.hmget(key, ...fieldsToGet) as Record<string, string>;
+                    
+                    let nextHostId = remainingIds[0];
+                    let minCreatedAt = Infinity;
+                    
+                    remainingIds.forEach((pId) => {
+                        const fieldName = `p:${pId}:createdAt`;
+                        const cTime = Number(createdTimes[fieldName] || Infinity);
+                        if (cTime < minCreatedAt) {
+                            minCreatedAt = cTime;
+                            nextHostId = pId;
+                        }
+                    });
+                    
+                    pipeline.hset(key, { roomHostId: nextHostId });
+                }
+            }
+            
+            await pipeline.exec();
+            
+            revalidatePath(`/room/${roomCode}`);
+            return { success: true, message: `Player ${deletedPlayerName} deleted successfully` };
+        } else {
+            throw new Error("Failed to delete a player");
+        }
     } catch (error) {
         if (error instanceof Error) {
-            return { success: false, error: error.message }
-        } else {
-            return { success: false, error: String(error) }
+            return { success: false, error: error.message };
         }
+        return { success: false, error: String(error) };
+    } finally {
+        await lock.release();
     }
 }
 

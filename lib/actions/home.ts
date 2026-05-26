@@ -1,6 +1,7 @@
 "use server";
 
 import { Redis } from "@upstash/redis";
+import { Lock } from "@upstash/lock";
 import { redirect } from "next/navigation";
 import { cookies } from "next/headers";
 import { revalidatePath } from "next/cache";
@@ -61,62 +62,50 @@ export async function createRoom(prevState: ActionResponse, formData: FormData):
     redirect(`/room/${roomCode}`);
 }
 
-export async function joinRoom(prevState: ActionResponse, formData: FormData,): Promise<ActionResponse> {
+export async function joinRoom(prevState: ActionResponse, formData: FormData): Promise<ActionResponse> {
     console.log("[joinRoom] Action started");
     console.time("joinRoom total");
     const userId = crypto.randomUUID();
     const roomCode = formData.get("room");
-    const username = formData.get("username")
+    const username = formData.get("username");
     const unixTimeStamp = Date.now();
     const key = `room:${roomCode}`;
 
-    // lua script
-    const script = `
-    local key = KEYS[1]
-    local userId = ARGV[1]
-    local unixTimeStamp = ARGV[2]
-    local username = ARGV[3]
-    local activePlayersIdsKey = key .. ':activePlayersIds'
+    const lock = new Lock({
+        id: `lock:${key}`,
+        redis,
+        lease: 5000,
+    });
 
-    local isKeyExist = redis.call('HEXISTS', key, 'playersInRoom')
-
-    if isKeyExist == 0 then
-      return 'ROOM_NOT_FOUND'
-    end
-    
-    local roomMetaData = redis.call('HMGET', key, 'playersInRoom', 'maxPlayersInRoom')
-    local playersInRoom = tonumber(roomMetaData[1])
-    local maxPlayersInRoom = tonumber(roomMetaData[2])
-
-    if playersInRoom < maxPlayersInRoom then
-      local newPlayersInRoom = playersInRoom + 1
-      redis.call(
-          'HSET', 
-          key, 
-          'playersInRoom', newPlayersInRoom, 
-          'p:' .. userId .. ':name', username, 
-          'p:' .. userId .. ':createdAt', unixTimeStamp 
-      )
-      redis.call('SADD', activePlayersIdsKey, userId)
-      return newPlayersInRoom
-    else
-      return 'ROOM_FULL'
-    end
-  `;
+    const isLockAcquired = await lock.acquire();
+    if (!isLockAcquired) {
+        return { success: false, error: "Unable to join room. Please try again." };
+    }
 
     try {
-        const result = await redis.eval(script, [key], [userId, unixTimeStamp, username]);
-
-        switch (result) {
-            case "ROOM_FULL":
-                throw new Error(`Room ${roomCode} is full.`);
-
-            case "ROOM_NOT_FOUND":
-                throw new Error(`Room ${roomCode} is not found.`);
-
-            default:
-                break;
+        const roomData = await redis.hgetall(key);
+        if (!roomData || !Object.hasOwn(roomData, "playersInRoom")) {
+            throw new Error(`Room ${roomCode} is not found.`);
         }
+
+        const playersInRoom = Number(roomData.playersInRoom);
+        const maxPlayersInRoom = Number(roomData.maxPlayersInRoom);
+
+        if (playersInRoom >= maxPlayersInRoom) {
+            throw new Error(`Room ${roomCode} is full.`);
+        }
+
+        const newPlayersInRoom = playersInRoom + 1;
+        const activePlayersIdsKey = `${key}:activePlayersIds`;
+
+        const pipeline = redis.pipeline();
+        pipeline.hset(key, {
+            playersInRoom: newPlayersInRoom,
+            [`p:${userId}:name`]: username,
+            [`p:${userId}:createdAt`]: unixTimeStamp,
+        });
+        pipeline.sadd(activePlayersIdsKey, userId);
+        await pipeline.exec();
 
         (await cookies()).set("user_id", userId, {
             httpOnly: true,
@@ -131,6 +120,8 @@ export async function joinRoom(prevState: ActionResponse, formData: FormData,): 
         }
         console.error("[joinRoom] Unknown Error:", error);
         return { success: false, error: String(error) };
+    } finally {
+        await lock.release();
     }
 
     console.timeEnd("joinRoom total");

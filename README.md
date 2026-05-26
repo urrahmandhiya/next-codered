@@ -45,3 +45,32 @@ pnpm dev
 ```
 
 Open http://localhost:3000 in your browser to view the application. The page will auto-update as you modify files in the app/ directory.
+
+## Game Flow & Setup Requirements
+
+The game lobby and room settings adhere to strict gameplay and synchronization rules to guarantee fair distribution of roles before the game starts.
+
+### 1. Room Capacity
+* **Minimum Capacity:** 4 players.
+* **Maximum Capacity:** 25 players.
+* *Controls:* The capacity is managed via custom numeric steppers. The adjustment buttons automatically disable when reaching the minimum (4) or maximum (25) limit.
+
+### 2. Role Distribution & Synchronization
+* **Available Roles:** Villagers and Werewolves.
+* **Sum Consistency:** The total number of assigned roles (Villagers + Werewolves) **must always exactly equal** the room's maximum player capacity.
+* **Werewolf Ratio Cap:** Werewolves are capped at **30% of the total room capacity** (rounded down).
+  * *Example:* In a 10-player room, the Werewolf count cannot exceed 3 (30% of 10).
+* **Auto-Synchronization:**
+  * Adjusting the maximum player capacity dynamically recalculates role limits and scales counts.
+  * Adjusting the **Werewolf** count automatically increases/decreases the **Villager** count to maintain the sum, and vice-versa.
+  * Buttons are intelligently disabled when either role hits its respective ceiling (e.g., Werewolf reaching its 30% cap) or floor.
+
+### 3. Permissions & Host Privileges
+* **Host:**
+  * Has full access to the Room Settings modal.
+  * Can change the room capacity, distribute roles, and start the game.
+  * Has access to host-specific actions, such as kicking players from the waiting room.
+* **Guest Players:**
+  * View-only access to the room configuration (room capacity and role numbers are locked).
+  * Can use the Room Settings modal exclusively to update their own player name.
+

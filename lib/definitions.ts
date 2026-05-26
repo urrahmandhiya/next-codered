@@ -18,6 +18,7 @@ export interface Player {
     name: string;
     isHost: boolean;
     createdAt: number;
+    lastSeen?: number;
     role: string;
 }
 
