@@ -1,21 +1,39 @@
 'use client'
 
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import WaitingRoom from "./waiting-room";
 import GameRoom from "./game-room";
 import { updateRoomState } from "@/lib/data";
 import useSWR from "swr";
-
-const isDev = process.env.NEXT_PUBLIC_MODE === "DEV";
+import { useUserCookies } from "./cookie-provider";
+import { useEffect, useState } from "react";
+import { Player } from "@/lib/definitions";
 
 export default function RoomManager() {
     const roomCode = String(useParams().roomcode);
-    const { data } = useSWR(roomCode, updateRoomState, {
-        refreshInterval: isDev ? 0 : 5000,
+    const router = useRouter();
+    const userId = useUserCookies();
+    const [hasFetched, setHasFetched] = useState(false);
+
+    const { data, error } = useSWR(roomCode, updateRoomState, {
+        refreshInterval: 3000,
         revalidateOnFocus: false,
         revalidateOnReconnect: false,
-        revalidateIfStale: false,
+        revalidateIfStale: true,
+        onSuccess: () => setHasFetched(true),
+        onError: () => setHasFetched(true),
     });
+
+    useEffect(() => {
+        if (!hasFetched) return;
+
+        const isRoomInvalid = error;
+        const isPlayerMissing = data && !data.players.some((p: Player) => p.id === userId);
+
+        if (isRoomInvalid || isPlayerMissing) {
+            router.push("/");
+        }
+    }, [data, error, hasFetched, userId, router]);
 
     const roomStatus = data ? data.roomStatus : "waiting";
 

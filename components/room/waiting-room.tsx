@@ -3,16 +3,17 @@
 import { Button } from "@/components/ui/button";
 import PlayerList from "./player-list";
 import { Skeleton } from "../ui/skeleton";
-import { startGame } from "@/lib/actions/room";
+import { startGame, deletePlayer } from "@/lib/actions/room";
 import RoomSettings from "./room-settings";
 import { useState, useTransition } from "react";
 import { Spinner } from "../ui/spinner";
 import { Alert, AlertTitle } from "../ui/alert";
-import { AlertCircleIcon, Copy, Settings, Check } from "lucide-react";
+import { AlertCircleIcon, Copy, Settings, Check, LogOut, X } from "lucide-react";
 import { Player } from "@/lib/definitions";
 import UpdateButton from "./update-button";
 import { updateRoomState } from "@/lib/data";
 import useSWR from "swr";
+import { useRouter } from "next/navigation";
 import { useUserCookies } from "./cookie-provider";
 import PlayerNameChange from "./player-name.change";
 import { cn } from "@/lib/utils";
@@ -27,6 +28,7 @@ export default function WaitingRoom({ roomCode }: { roomCode: string }) {
     const [isStarting, setIsStarting] = useState(false);
     const [showSettings, setShowSettings] = useState(false);
     const [copied, setCopied] = useState(false);
+    const router = useRouter();
 
     const { data, isLoading, mutate } = useSWR(roomCode, updateRoomState, {
         refreshInterval: isDev ? 0 : 5000,
@@ -54,6 +56,18 @@ export default function WaitingRoom({ roomCode }: { roomCode: string }) {
             }
         })
     }
+
+    const handleLeaveRoom = () => {
+        if (!userId) return;
+        startTransition(async () => {
+            const result = await deletePlayer(roomCode, userId);
+            if (result?.success === false) {
+                setAlertMessage(result.error);
+            } else {
+                router.push("/");
+            }
+        });
+    };
 
     const copyCode = () => {
         navigator.clipboard.writeText(roomCode);
@@ -138,6 +152,17 @@ export default function WaitingRoom({ roomCode }: { roomCode: string }) {
             {/* Bottom Section */}
             <div className="flex flex-col items-center gap-6 w-full pt-4 md:pt-12">
                 <div className="flex items-center gap-4 md:gap-10 w-full md:w-full md:max-w-4xl justify-center">
+                    <Button
+                        variant="outline"
+                        size="icon"
+                        onClick={handleLeaveRoom}
+                        disabled={isPending || isStarting}
+                        className="size-16 md:size-20 rounded-full md:rounded-2xl border-2 border-zinc-800 bg-black text-red-500 hover:text-red-400 hover:border-red-500/50 hover:shadow-[0_0_15px_rgba(239,68,68,0.3)] transition-all flex-shrink-0"
+                        title="Leave Room"
+                    >
+                        <LogOut className="size-6 md:size-7" />
+                    </Button>
+                    
                     <Button 
                         onClick={handleStartGame} 
                         disabled={isPending || !isHost || isStarting}
@@ -159,25 +184,34 @@ export default function WaitingRoom({ roomCode }: { roomCode: string }) {
 
             {/* Settings Overlay/Modal Logic */}
             {showSettings && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
-                    <div className="w-full max-w-lg md:max-w-2xl bg-zinc-950 border border-zinc-800 rounded-3xl p-6 md:p-10 shadow-2xl overflow-y-auto max-h-[90vh]">
-                        <div className="flex justify-between items-center mb-8">
-                            <h2 className="text-xl md:text-2xl font-bold text-white uppercase tracking-widest font-mono">Room Settings</h2>
-                            <Button variant="ghost" size="icon" onClick={() => setShowSettings(false)} className="text-zinc-500 hover:text-white">
-                                <Check className="size-6" />
+                <div 
+                    className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm"
+                    onClick={() => setShowSettings(false)}
+                >
+                    <div 
+                        className="w-full flex flex-col gap-8 max-w-lg md:max-w-2xl bg-black/80 backdrop-blur-xl border border-cyan/30 rounded-3xl p-6 md:p-10 shadow-[0_0_40px_rgba(6,182,212,0.15)] border-glow-cyan overflow-y-auto max-h-[90vh]"
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        <div className="flex justify-between items-center">
+                            <h2 className="text-xl md:text-2xl font-bold text-white uppercase tracking-widest font-mono text-glow-cyan">Room Settings</h2>
+                            <Button variant="ghost" size="icon" onClick={() => setShowSettings(false)} className="text-zinc-400 hover:text-cyan hover:bg-cyan/10 rounded-full transition-colors">
+                                <X className="size-6 md:size-7" />
                             </Button>
                         </div>
-                        <div className="space-y-10">
-                            <PlayerNameChange roomCode={roomCode} players={players} />
-                            {isHost && (
+                        
+                        <PlayerNameChange roomCode={roomCode} players={players} />
+                        
+                        {isHost && (
+                            <>
+                                <Separator className="bg-cyan/20" />
                                 <RoomSettings 
                                     maxPlayersInRoom={maxPlayersInRoom} 
                                     roomCode={roomCode} 
                                     roles={roles} 
                                     totalRoles={totalRoles} 
                                 />
-                            )}
-                        </div>
+                            </>
+                        )}
                     </div>
                 </div>
             )}
