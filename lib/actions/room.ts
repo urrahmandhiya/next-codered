@@ -77,6 +77,7 @@ export async function getRoomState(roomCode: string): Promise<{ room: Room | nul
 export async function startGame(roomCode: string): Promise<ActionResponse> {
     const key = `room:${roomCode}`;
     const activePlayersIdsKey = `${key}:activePlayersIds`;
+    const phaseDuration = 20 * 1000;
     const lock = new Lock({
         id: `lock:${key}`,
         redis,
@@ -128,6 +129,9 @@ export async function startGame(roomCode: string): Promise<ActionResponse> {
 
         const initialGameState: Record<string, string | number> = {
             roomStatus: "playing",
+            round: 0,
+            phase: "starting",
+            phaseEndAt: Date.now() + phaseDuration,
         };
 
         let playerIdx = 0;
@@ -136,6 +140,7 @@ export async function startGame(roomCode: string): Promise<ActionResponse> {
             for (let i = 0; i < amount; i++) {
                 if (playerIdx < shuffledPlayers.length) {
                     initialGameState[`p:${shuffledPlayers[playerIdx]}:role`] = role;
+                    initialGameState[`p:${shuffledPlayers[playerIdx]}:status`] = "alive";
                     playerIdx++;
                 }
             }

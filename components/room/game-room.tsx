@@ -7,7 +7,7 @@ import { updateGameState } from "@/lib/data";
 const isDev = process.env.NEXT_PUBLIC_MODE === "DEV";
 
 export default function GameRoom({ roomCode }: { roomCode: string }) {
-    const [duration, setDuration] = useState(0); // will not go more than 5 minutes
+    const [duration, setDuration] = useState(0);
     const { data, mutate } = useSWR(`gameState-${roomCode}`, () => updateGameState(roomCode), {
         refreshInterval: isDev ? 0 : 5000,
         revalidateOnFocus: false,
