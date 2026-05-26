@@ -61,6 +61,8 @@ export async function getRoomState(roomCode: string): Promise<{ room: Room | nul
 export async function startGame(roomCode: string): Promise<ActionResponse> {
     const key = `room:${roomCode}`;
     const jsonRoles = JSON.stringify(CURRENT_ROLES.map((role) => `r:${role}`));
+    const configuredDuration = 20 * 1000;
+    const phaseDuration = Date.now() + configuredDuration;
     const script = `
     local key = KEYS[1]
     local activePlayersIdsKey = key .. ':activePlayersIds'
@@ -109,10 +111,20 @@ export async function startGame(roomCode: string): Promise<ActionResponse> {
             playerIdsIndex = playerIdsIndex + 1
             table.insert(initialGameState, 'p:' .. playersIds[playerIdsIndex] .. ':role')
             table.insert(initialGameState, string.sub(rolesFields[index], 3))
+
+            table.insert(initialGameState, 'p:' .. playersIds[playerIdsIndex] .. ':status')
+            table.insert(initialGameState, 'alive')
         end
     end
 
-    local newRoomStatus = {['roomStatus'] = 'playing'}
+    local phaseDuration = tonumber(ARGV[3])
+    local newRoomStatus = {
+        ['roomStatus'] = 'playing', 
+        ['phase'] = 'starting', 
+        ['phaseEndAt'] = phaseDuration, 
+        ['round'] = 0
+    }
+
     for k, v in pairs(newRoomStatus) do
         table.insert(initialGameState, k)
         table.insert(initialGameState, v)
@@ -123,7 +135,7 @@ export async function startGame(roomCode: string): Promise<ActionResponse> {
   `;
 
     try {
-        const result = await redis.eval(script, [key], [MINIMAL_CURRENTPLAYERS, jsonRoles]);
+        const result = await redis.eval(script, [key], [MINIMAL_CURRENTPLAYERS, jsonRoles, phaseDuration]);
 
         switch (result) {
             case "INSUFFICIENT_PLAYERS":

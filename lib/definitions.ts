@@ -39,3 +39,26 @@ export type Role = {
 }
 
 export type RedisRoom = RoomMetaData & DynamicFields;
+
+export type GameRoomMetaData = {
+    phase: string;
+    phaseEndAt: number;
+    round: number;
+}
+
+export interface GameState {
+    phase: string;
+    phaseEndAt: number;
+    round: number;
+    user: InGamePlayer;
+    players: InGamePlayer[];
+}
+
+export interface InGamePlayer {
+    id: string;
+    name: string;
+    status: string;
+    role: string;
+}
+
+export type RedisGameRoom = GameRoomMetaData & DynamicFields;
