@@ -65,7 +65,7 @@ export async function getRoomState(roomCode: string): Promise<{ room: Room | nul
     if (room.roomStatus === "waiting") {
         const now = Date.now();
         for (const player of room.players) {
-            if (player.id !== userId && now - player.lastSeen > 12000) {
+            if (player.id !== userId && now - player.lastSeen > (120 * 1000)) {
                 await deletePlayer(roomCode, player.id);
             }
         }
