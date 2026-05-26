@@ -14,6 +14,9 @@ importers:
       '@hookform/resolvers':
         specifier: ^5.2.2
         version: 5.2.2(react-hook-form@7.74.0(react@19.2.4))
+      '@upstash/lock':
+        specifier: ^0.2.1
+        version: 0.2.1(typescript@5.9.3)
       '@upstash/redis':
         specifier: ^1.37.0
         version: 1.37.0
@@ -977,6 +980,11 @@ packages:
     resolution: {integrity: sha512-lrW200hZdbfRtztbygyaq/6jP6AKE8qQN2KvPcJ+x7wiD038YtnYtZ82IMNJ69GJibV7bwL3y9FgK+5w/pYt6g==}
     cpu: [x64]
     os: [win32]
+
+  '@upstash/lock@0.2.1':
+    resolution: {integrity: sha512-7f/yeicYfNLwDwXm5fAoKbobcdHpNWPbXewmdDFfOgAB4gVWaHXT63iOc09qq6DVFTB5YHvmm0jVIFV8eQnJ+g==}
+    peerDependencies:
+      typescript: ^5.0.0
 
   '@upstash/redis@1.37.0':
     resolution: {integrity: sha512-LqOJ3+XWPLSZ2rGSed5DYG3ixybxb8EhZu3yQqF7MdZX1wLBG/FRcI6xcUZXHy/SS7mmXWyadrud0HJHkOc+uw==}
@@ -3911,6 +3919,10 @@ snapshots:
 
   '@unrs/resolver-binding-win32-x64-msvc@1.11.1':
     optional: true
+
+  '@upstash/lock@0.2.1(typescript@5.9.3)':
+    dependencies:
+      typescript: 5.9.3
 
   '@upstash/redis@1.37.0':
     dependencies:
