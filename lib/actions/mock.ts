@@ -33,6 +33,7 @@ export async function goToWaitingRoom() {
         [`p:${hostId}:createdAt`]: hostState.createdAt,
         maxPlayersInRoom: 4,
         playersInRoom: 4,
+        phaseDuration: 15,
     };
 
     const rolesState: { [key: string]: string | number } = {}
