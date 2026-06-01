@@ -56,6 +56,7 @@ export async function getRoomState(roomCode: string): Promise<{ room: Room | nul
         maxPlayersInRoom: roomData.maxPlayersInRoom,
         playersInRoom: roomData.playersInRoom,
         roles: roles,
+        phaseDuration: roomData.phaseDuration,
     };
 
     if (userId && activePlayersIds.includes(userId)) {
@@ -74,10 +75,9 @@ export async function getRoomState(roomCode: string): Promise<{ room: Room | nul
     return { room, userId };
 }
 
-export async function startGame(roomCode: string): Promise<ActionResponse> {
+export async function startGame(roomCode: string, phaseDuration: number): Promise<ActionResponse> {
     const key = `room:${roomCode}`;
     const activePlayersIdsKey = `${key}:activePlayersIds`;
-    const phaseDuration = 20 * 1000;
     const lock = new Lock({
         id: `lock:${key}`,
         redis,
@@ -131,7 +131,7 @@ export async function startGame(roomCode: string): Promise<ActionResponse> {
             roomStatus: "playing",
             round: 0,
             phase: "starting",
-            phaseEndAt: Date.now() + phaseDuration,
+            phaseEndAt: Date.now() + (phaseDuration * 1000),
         };
 
         let playerIdx = 0;
@@ -161,6 +161,7 @@ export async function startGame(roomCode: string): Promise<ActionResponse> {
 export async function updateRoomSettings(roomCode: string, prevState: ActionResponse, formData: FormData): Promise<ActionResponse> {
     const key = `room:${roomCode}`;
     const playerCapacity = Number(formData.get("player-cap") || 0);
+    const phaseDuration = Number(formData.get("phase-duration") || 0);
 
     const lock = new Lock({
         id: `lock:${key}`,
@@ -192,6 +193,7 @@ export async function updateRoomSettings(roomCode: string, prevState: ActionResp
 
         const updates: Record<string, number> = {
             maxPlayersInRoom: playerCapacity,
+            phaseDuration: phaseDuration,
         };
 
         for (const role of CURRENT_ROLES) {

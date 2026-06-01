@@ -9,27 +9,29 @@ const redis = Redis.fromEnv();
 export async function getGameState(roomCode: string): Promise<{ gameState: GameState | null; activePlayersIds: string[] }> {
     const userId = (await cookies()).get("user_id")?.value;
     const key = `room:${roomCode}`;
-    const configuredDuration = 20 * 1000;
     const currentTime = Date.now();
 
     const gatekeepScript = `
     local phaseEnd = redis.call('HGET', KEYS[1], 'phaseEndAt')
     local currentPhase = redis.call('HGET', KEYS[1], 'phase')
+    local phaseDuration = redis.call('HGET', KEYS[1], 'phaseDuration')
+    local isResolver = false
+
     if tonumber(phaseEnd) <= tonumber(ARGV[1]) and currentPhase ~= 'resolving' then
         redis.call('HSET', KEYS[1], 'phase', 'resolving')
-        return true
-    else
-        return false
+        isResolver = true
     end
+
+    return {isResolver, phaseDuration}
     `;
 
-    const isResolver = await redis.eval(gatekeepScript, [key], [currentTime]);
+    const [isResolver, phaseDuration] = await redis.eval(gatekeepScript, [key], [currentTime]) as [boolean, number];
     let updatedState = {};
     if (isResolver) {
         console.log("CALCULATING SOMETHING")
         updatedState = {
             phase: ["night", "day"],
-            phaseEndAt: Date.now() + configuredDuration,
+            phaseEndAt: Date.now() + (phaseDuration * 1000),
         };
     };
 

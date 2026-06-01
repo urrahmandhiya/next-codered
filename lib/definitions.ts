@@ -10,6 +10,7 @@ export interface Room {
     maxPlayersInRoom: number;
     playersInRoom: number;
     roles: Role[];
+    phaseDuration: number;
 }
 
 
@@ -28,6 +29,7 @@ type RoomMetaData = {
     maxPlayersInRoom: number;
     playersInRoom: number;
     activePlayersIds: string;
+    phaseDuration: number;
 };
 
 type DynamicFields = {

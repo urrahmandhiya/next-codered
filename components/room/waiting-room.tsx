@@ -45,10 +45,11 @@ export default function WaitingRoom({ roomCode }: { roomCode: string }) {
     const isHost = data?.roomHostId === userId;
     const roles = data?.roles || [];
     const totalRoles = data?.roles.reduce((acc, curr) => acc += Number(curr.amount), 0) || 0;
+    const phaseDuration = data?.phaseDuration || 0;
 
     const handleStartGame = () => {
         startTransition(async () => {
-            const result = await startGame(roomCode);
+            const result = await startGame(roomCode, phaseDuration);
             if (result?.success === false) {
                 setAlertMessage(result.error)
             } else {
@@ -209,6 +210,7 @@ export default function WaitingRoom({ roomCode }: { roomCode: string }) {
                                     roomCode={roomCode} 
                                     roles={roles} 
                                     totalRoles={totalRoles} 
+                                    phaseDuration={phaseDuration}
                                 />
                             </>
                         )}
@@ -217,4 +219,4 @@ export default function WaitingRoom({ roomCode }: { roomCode: string }) {
             )}
         </div>
     );
-}
+}

@@ -8,7 +8,12 @@ import { revalidatePath } from "next/cache";
 import { ActionResponse } from "../definitions";
 
 const redis = Redis.fromEnv();
-const DEFAULT_MAX_NUMBER_OF_PLAYERS = 8;
+const INITIAL_ROOM_DEFAULTS = {
+    MAX_NUMBER_OF_PLAYERS: 8,
+    PLAYERS_IN_ROOM: 1,
+    PHASE_DURATION: 15,
+    KEY_TTL: 3600,
+}
 
 export async function createRoom(prevState: ActionResponse, formData: FormData): Promise<ActionResponse> {
     console.log("[createRoom] Action started");
@@ -26,8 +31,9 @@ export async function createRoom(prevState: ActionResponse, formData: FormData):
         roomHostId: hostId,
         [`p:${hostId}:name`]: playerState.name,
         [`p:${hostId}:createdAt`]: playerState.createdAt,
-        maxPlayersInRoom: DEFAULT_MAX_NUMBER_OF_PLAYERS,
-        playersInRoom: 1,
+        maxPlayersInRoom: INITIAL_ROOM_DEFAULTS.MAX_NUMBER_OF_PLAYERS,
+        playersInRoom: INITIAL_ROOM_DEFAULTS.PLAYERS_IN_ROOM,
+        phaseDuration: INITIAL_ROOM_DEFAULTS.PHASE_DURATION,
     };
 
     const p = redis.pipeline();
@@ -35,8 +41,8 @@ export async function createRoom(prevState: ActionResponse, formData: FormData):
     p.hset(`room:${roomCode}`, initialRoomState);
 
     // keys are set to expire in one hour
-    p.expire(`room:${roomCode}`, 3600)
-    p.expire(`room:${roomCode}:activePlayersIds`, 3600)
+    p.expire(`room:${roomCode}`, INITIAL_ROOM_DEFAULTS.KEY_TTL)
+    p.expire(`room:${roomCode}:activePlayersIds`, INITIAL_ROOM_DEFAULTS.KEY_TTL)
 
     try {
         console.time("redis pipeline exec");
