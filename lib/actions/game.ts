@@ -2,7 +2,7 @@
 
 import { Redis } from "@upstash/redis";
 import { cookies } from "next/headers";
-import { GameState, RedisGameRoom } from "../definitions";
+import { DynamicFields, GameRoomMetaData, GameState, RedisGameRoom } from "../definitions";
 
 const redis = Redis.fromEnv();
 
@@ -12,26 +12,54 @@ export async function getGameState(roomCode: string): Promise<{ gameState: GameS
     const currentTime = Date.now();
 
     const gatekeepScript = `
-    local phaseEnd = redis.call('HGET', KEYS[1], 'phaseEndAt')
-    local currentPhase = redis.call('HGET', KEYS[1], 'phase')
-    local phaseDuration = redis.call('HGET', KEYS[1], 'phaseDuration')
+    local gameStateFields = {
+        'phase',
+        'phaseDuration',
+        'round',
+        'phaseEndAt',
+    }
+
+    local value = redis.call('HMGET', KEYS[1], unpack(gameStateFields))
+    local data = {}
+
+    for i, field in ipairs(gameStateFields) do
+        data[field] = value[i]
+    end
+
     local isResolver = false
 
-    if tonumber(phaseEnd) <= tonumber(ARGV[1]) and currentPhase ~= 'resolving' then
+    if tonumber(data.phaseEndAt) <= tonumber(ARGV[1]) and data.phase ~= 'resolving' then
         redis.call('HSET', KEYS[1], 'phase', 'resolving')
         isResolver = true
     end
 
-    return {isResolver, phaseDuration}
+    return {isResolver, cjson.encode(data)}
     `;
 
-    const [isResolver, phaseDuration] = await redis.eval(gatekeepScript, [key], [currentTime]) as [boolean, number];
+    const [isResolver, data] = await redis.eval(gatekeepScript, [key], [currentTime]) as [boolean, GameRoomMetaData];
     let updatedState = {};
     if (isResolver) {
         console.log("CALCULATING SOMETHING")
+        const ROUND_0_PHASE = {
+            starting: "night",
+            night: "day",
+            day: "hangVote",
+            hangVote: "night",
+        }
+        const ROUND_1_PHASE = {
+            night: "killVote",
+            killVote: "day",
+            day: "hangVote",
+            hangVote: "night",
+        }
+        const phaseState: DynamicFields = data.round > 0 ? ROUND_1_PHASE : ROUND_0_PHASE;
+        const nextPhase = phaseState[data.phase];
+        const isNextRound = nextPhase === "day";
+
         updatedState = {
-            phase: ["night", "day"],
-            phaseEndAt: Date.now() + (phaseDuration * 1000),
+            phase: nextPhase,
+            phaseEndAt: Date.now() + (data.phaseDuration * 1000),
+            round: isNextRound ? Number(data.round) + 1 : Number(data.round), 
         };
     };
 
@@ -43,11 +71,12 @@ export async function getGameState(roomCode: string): Promise<{ gameState: GameS
 
     if next(updatedState) ~= nil then
         local roundCount = redis.call('HGET', key, 'round')
+        local currentPhase = redis.call('HGET', key, 'phase')
 
         redis.call('HSET', key,
-            'phase', updatedState.phase[((roundCount + 1) % #updatedState.phase) + 1],
+            'phase', updatedState.phase,
             'phaseEndAt', updatedState.phaseEndAt,
-            'round', roundCount + 1
+            'round', updatedState.round
         )
     end
 

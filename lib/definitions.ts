@@ -32,7 +32,7 @@ type RoomMetaData = {
     phaseDuration: number;
 };
 
-type DynamicFields = {
+export type DynamicFields = {
     [key: string]: string | number;
 };
 
@@ -47,6 +47,7 @@ export type GameRoomMetaData = {
     phase: string;
     phaseEndAt: number;
     round: number;
+    phaseDuration: number;
 }
 
 export interface GameState {
@@ -64,4 +65,6 @@ export interface InGamePlayer {
     role: string;
 }
 
-export type RedisGameRoom = GameRoomMetaData & DynamicFields;
+type DynamicGameRoomMetaData = Omit<GameRoomMetaData, 'phaseDuration'>
+
+export type RedisGameRoom = DynamicGameRoomMetaData & DynamicFields;

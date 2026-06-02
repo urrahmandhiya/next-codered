@@ -18,7 +18,11 @@ export default function RoomManager() {
     const [hasFetched, setHasFetched] = useState(false);
 
     const { data, error } = useSWR(roomCode, updateRoomState, {
-        refreshInterval: isDev ? 0 : 5000,
+        refreshInterval: (currentData) => {
+            if (isDev) return 0;
+            if (currentData?.roomStatus === "playing") return 0;
+            return 5000;
+        },
         revalidateOnFocus: false,
         revalidateOnReconnect: false,
         revalidateIfStale: true,
