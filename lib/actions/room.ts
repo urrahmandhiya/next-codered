@@ -56,7 +56,8 @@ export async function getRoomState(roomCode: string): Promise<{ room: Room | nul
         maxPlayersInRoom: roomData.maxPlayersInRoom,
         playersInRoom: roomData.playersInRoom,
         roles: roles,
-        phaseDuration: roomData.phaseDuration,
+        discussDuration: roomData.discussDuration,
+        voteDuration: roomData.voteDuration,
     };
 
     if (userId && activePlayersIds.includes(userId)) {
@@ -75,7 +76,7 @@ export async function getRoomState(roomCode: string): Promise<{ room: Room | nul
     return { room, userId };
 }
 
-export async function startGame(roomCode: string, phaseDuration: number): Promise<ActionResponse> {
+export async function startGame(roomCode: string): Promise<ActionResponse> {
     const key = `room:${roomCode}`;
     const activePlayersIdsKey = `${key}:activePlayersIds`;
     const lock = new Lock({
@@ -131,7 +132,7 @@ export async function startGame(roomCode: string, phaseDuration: number): Promis
             roomStatus: "playing",
             round: 0,
             phase: "starting",
-            phaseEndAt: Date.now() + (phaseDuration * 1000),
+            phaseEndAt: Date.now() + (10 * 1000),
         };
 
         let playerIdx = 0;
@@ -161,7 +162,8 @@ export async function startGame(roomCode: string, phaseDuration: number): Promis
 export async function updateRoomSettings(roomCode: string, prevState: ActionResponse, formData: FormData): Promise<ActionResponse> {
     const key = `room:${roomCode}`;
     const playerCapacity = Number(formData.get("player-cap") || 0);
-    const phaseDuration = Number(formData.get("phase-duration") || 0);
+    const discussDuration = Number(formData.get("discuss-duration") || 0);
+    const voteDuration = Number(formData.get("vote-duration") || 0);
 
     const lock = new Lock({
         id: `lock:${key}`,
@@ -193,7 +195,8 @@ export async function updateRoomSettings(roomCode: string, prevState: ActionResp
 
         const updates: Record<string, number> = {
             maxPlayersInRoom: playerCapacity,
-            phaseDuration: phaseDuration,
+            discussDuration: discussDuration,
+            voteDuration: voteDuration,
         };
 
         for (const role of CURRENT_ROLES) {

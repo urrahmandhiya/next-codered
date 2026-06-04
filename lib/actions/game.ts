@@ -14,7 +14,8 @@ export async function getGameState(roomCode: string): Promise<{ gameState: GameS
     const gatekeepScript = `
     local gameStateFields = {
         'phase',
-        'phaseDuration',
+        'discussDuration',
+        'voteDuration',
         'round',
         'phaseEndAt',
     }
@@ -53,13 +54,13 @@ export async function getGameState(roomCode: string): Promise<{ gameState: GameS
             hangVote: "night",
         }
         const phaseState: DynamicFields = data.round > 0 ? ROUND_1_PHASE : ROUND_0_PHASE;
-        const nextPhase = phaseState[data.phase];
+        const nextPhase = String(phaseState[data.phase]);
         const isNextRound = nextPhase === "day";
 
         updatedState = {
             phase: nextPhase,
-            phaseEndAt: Date.now() + (data.phaseDuration * 1000),
-            round: isNextRound ? Number(data.round) + 1 : Number(data.round), 
+            phaseEndAt: Date.now() + ((nextPhase.endsWith("Vote") ? data.voteDuration : data.discussDuration) * 1000),
+            round: isNextRound ? Number(data.round) + 1 : Number(data.round),
         };
     };
 

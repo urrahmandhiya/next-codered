@@ -45,11 +45,12 @@ export default function WaitingRoom({ roomCode }: { roomCode: string }) {
     const isHost = data?.roomHostId === userId;
     const roles = data?.roles || [];
     const totalRoles = data?.roles.reduce((acc, curr) => acc += Number(curr.amount), 0) || 0;
-    const phaseDuration = data?.phaseDuration || 0;
+    const discussDuration = data?.discussDuration || 0;
+    const voteDuration = data?.voteDuration || 0;
 
     const handleStartGame = () => {
         startTransition(async () => {
-            const result = await startGame(roomCode, phaseDuration);
+            const result = await startGame(roomCode);
             if (result?.success === false) {
                 setAlertMessage(result.error)
             } else {
@@ -210,7 +211,8 @@ export default function WaitingRoom({ roomCode }: { roomCode: string }) {
                                     roomCode={roomCode} 
                                     roles={roles} 
                                     totalRoles={totalRoles} 
-                                    phaseDuration={phaseDuration}
+                                    discussDuration={discussDuration}
+                                    voteDuration={voteDuration}
                                 />
                             </>
                         )}

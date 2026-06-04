@@ -10,32 +10,53 @@ import { mutate } from "swr";
 import { MinusIcon, PlusIcon } from "lucide-react";
 import { Role } from "@/lib/definitions";
 
-const PHASE_DURATION_DEFAULTS = {
+const DISCUSS_DURATION_DEFAULTS = {
     MAX: 120,
     MIN: 15,
     DEFAULT: 15,
     STEP: 15,
 }
 
+const VOTE_DURATION_DEFAULTS = {
+    MAX: 60,
+    MIN: 15,
+    DEFAULT: 15,
+    STEP: 15,
+}
+
 export default function RoomSettings({
-    maxPlayersInRoom, roomCode, roles, totalRoles, phaseDuration
+    maxPlayersInRoom, roomCode, roles, totalRoles, discussDuration, voteDuration
 }: {
     maxPlayersInRoom: number,
     roomCode: string,
     roles: Role[],
     totalRoles: number,
-    phaseDuration: number
+    discussDuration: number,
+    voteDuration: number
 }) {
     const [players, setPlayers] = useState(maxPlayersInRoom);
-    const [phaseDurationSetting, setPhaseDurationSetting] = useState(phaseDuration);
+    const [discussDurationSetting, setDiscussDurationSetting] = useState(discussDuration);
+    const [voteDurationSetting, setVoteDurationSetting] = useState(voteDuration);
     const [rolesSetting, setRolesSetting] = useState(roles);
 
     const updateRoomSettingsWithRoomCode = updateRoomSettings.bind(null, roomCode);
     const [state, formAction, isPending] = useActionState(updateRoomSettingsWithRoomCode, null);
 
-    const handlePhaseDurationChange = (newDuration: number) => {
-        const clampedDuration = Math.max(PHASE_DURATION_DEFAULTS.MIN, Math.min(PHASE_DURATION_DEFAULTS.MAX, newDuration));
-        setPhaseDurationSetting(clampedDuration);
+    const handleDurationChange = (newDuration: number, type: string) => {
+        switch (type) {
+            case "discuss":
+                const clampedDicussDuration = Math.max(DISCUSS_DURATION_DEFAULTS.MIN, Math.min(DISCUSS_DURATION_DEFAULTS.MAX, newDuration));
+                setDiscussDurationSetting(clampedDicussDuration);
+                break;
+
+            case "vote":
+                const clampedVoteDuration = Math.max(VOTE_DURATION_DEFAULTS.MIN, Math.min(VOTE_DURATION_DEFAULTS.MAX, newDuration));
+                setVoteDurationSetting(clampedVoteDuration);
+                break;
+
+            default:
+                break;
+        }
     };
 
     const handlePlayersChange = (newPlayersVal: number) => {
@@ -122,20 +143,20 @@ export default function RoomSettings({
         <div className="w-full">
             <form id="room-settings" action={formAction} className="flex flex-col gap-8 w-full">
 
-                {/* phase duration section */}
+                {/* discuss duration section */}
                 <div className="flex flex-col items-center gap-4 w-full">
                     <label
-                        htmlFor="room-settings-phase-duration"
+                        htmlFor="room-settings-discuss-duration"
                         className="text-sm font-mono tracking-widest text-cyan uppercase text-glow-cyan text-center"
                     >
-                        PHASE DURATION (SECONDS)
+                        discuss DURATION (SECONDS)
                     </label>
 
                     <div className="flex items-center gap-4">
                         <Button
                             type="button"
-                            onClick={() => handlePhaseDurationChange(phaseDurationSetting - PHASE_DURATION_DEFAULTS.STEP)}
-                            disabled={phaseDurationSetting <= PHASE_DURATION_DEFAULTS.MIN}
+                            onClick={() => handleDurationChange(discussDurationSetting - DISCUSS_DURATION_DEFAULTS.STEP, "discuss")}
+                            disabled={discussDurationSetting <= DISCUSS_DURATION_DEFAULTS.MIN}
                             variant="outline"
                             className="border-cyan/30 text-cyan bg-cyan/5 hover:bg-cyan/15 hover:border-cyan/50 hover:shadow-[0_0_10px_rgba(6,182,212,0.3)] size-12 rounded-xl transition-all disabled:opacity-50 disabled:hover:shadow-none"
                         >
@@ -143,17 +164,17 @@ export default function RoomSettings({
                         </Button>
                         <Input
                             type="number"
-                            name="phase-duration"
-                            id="room-settings-phase-duration"
+                            name="discuss-duration"
+                            id="room-settings-discuss-duration"
                             className="w-24 h-12 text-center font-mono text-xl font-bold text-white bg-black/50 border-2 border-cyan/40 focus-visible:border-cyan focus-visible:ring-cyan/30 border-glow-cyan rounded-xl [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-                            value={phaseDurationSetting}
-                            min={PHASE_DURATION_DEFAULTS.MIN}
-                            max={PHASE_DURATION_DEFAULTS.MAX}
+                            value={discussDurationSetting}
+                            min={DISCUSS_DURATION_DEFAULTS.MIN}
+                            max={DISCUSS_DURATION_DEFAULTS.MAX}
                         />
                         <Button
                             type="button"
-                            onClick={() => handlePhaseDurationChange(phaseDurationSetting + PHASE_DURATION_DEFAULTS.STEP)}
-                            disabled={phaseDurationSetting >= PHASE_DURATION_DEFAULTS.MAX}
+                            onClick={() => handleDurationChange(discussDurationSetting + DISCUSS_DURATION_DEFAULTS.STEP, "discuss")}
+                            disabled={discussDurationSetting >= DISCUSS_DURATION_DEFAULTS.MAX}
                             variant="outline"
                             className="border-cyan/30 text-cyan bg-cyan/5 hover:bg-cyan/15 hover:border-cyan/50 hover:shadow-[0_0_10px_rgba(6,182,212,0.3)] size-12 rounded-xl transition-all disabled:opacity-50 disabled:hover:shadow-none"
                         >
@@ -161,6 +182,47 @@ export default function RoomSettings({
                         </Button>
                     </div>
                 </div>
+
+                {/* vote duration section */}
+                <div className="flex flex-col items-center gap-4 w-full">
+                    <label
+                        htmlFor="room-settings-vote-duration"
+                        className="text-sm font-mono tracking-widest text-cyan uppercase text-glow-cyan text-center"
+                    >
+                        VOTE DURATION (SECONDS)
+                    </label>
+
+                    <div className="flex items-center gap-4">
+                        <Button
+                            type="button"
+                            onClick={() => handleDurationChange(voteDurationSetting - VOTE_DURATION_DEFAULTS.STEP, "vote")}
+                            disabled={voteDurationSetting <= VOTE_DURATION_DEFAULTS.MIN}
+                            variant="outline"
+                            className="border-cyan/30 text-cyan bg-cyan/5 hover:bg-cyan/15 hover:border-cyan/50 hover:shadow-[0_0_10px_rgba(6,182,212,0.3)] size-12 rounded-xl transition-all disabled:opacity-50 disabled:hover:shadow-none"
+                        >
+                            <MinusIcon className="size-5" />
+                        </Button>
+                        <Input
+                            type="number"
+                            name="vote-duration"
+                            id="room-settings-vote-duration"
+                            className="w-24 h-12 text-center font-mono text-xl font-bold text-white bg-black/50 border-2 border-cyan/40 focus-visible:border-cyan focus-visible:ring-cyan/30 border-glow-cyan rounded-xl [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                            value={voteDurationSetting}
+                            min={VOTE_DURATION_DEFAULTS.MIN}
+                            max={VOTE_DURATION_DEFAULTS.MAX}
+                        />
+                        <Button
+                            type="button"
+                            onClick={() => handleDurationChange(voteDurationSetting + VOTE_DURATION_DEFAULTS.STEP, "vote")}
+                            disabled={voteDurationSetting >= VOTE_DURATION_DEFAULTS.MAX}
+                            variant="outline"
+                            className="border-cyan/30 text-cyan bg-cyan/5 hover:bg-cyan/15 hover:border-cyan/50 hover:shadow-[0_0_10px_rgba(6,182,212,0.3)] size-12 rounded-xl transition-all disabled:opacity-50 disabled:hover:shadow-none"
+                        >
+                            <PlusIcon className="size-5" />
+                        </Button>
+                    </div>
+                </div>
+
                 {/* Player Capacity Section */}
                 <div className="flex flex-col items-center gap-4 w-full">
                     <label

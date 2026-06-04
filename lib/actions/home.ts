@@ -11,7 +11,8 @@ const redis = Redis.fromEnv();
 const INITIAL_ROOM_DEFAULTS = {
     MAX_NUMBER_OF_PLAYERS: 8,
     PLAYERS_IN_ROOM: 1,
-    PHASE_DURATION: 15,
+    DISCUSS_DURATION: 15,
+    VOTE_DURATION: 15,
     KEY_TTL: 3600,
 }
 
@@ -33,7 +34,8 @@ export async function createRoom(prevState: ActionResponse, formData: FormData):
         [`p:${hostId}:createdAt`]: playerState.createdAt,
         maxPlayersInRoom: INITIAL_ROOM_DEFAULTS.MAX_NUMBER_OF_PLAYERS,
         playersInRoom: INITIAL_ROOM_DEFAULTS.PLAYERS_IN_ROOM,
-        phaseDuration: INITIAL_ROOM_DEFAULTS.PHASE_DURATION,
+        discussDuration: INITIAL_ROOM_DEFAULTS.DISCUSS_DURATION,
+        voteDuration: INITIAL_ROOM_DEFAULTS.VOTE_DURATION,
     };
 
     const p = redis.pipeline();

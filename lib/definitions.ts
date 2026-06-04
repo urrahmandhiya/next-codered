@@ -10,7 +10,8 @@ export interface Room {
     maxPlayersInRoom: number;
     playersInRoom: number;
     roles: Role[];
-    phaseDuration: number;
+    discussDuration: number;
+    voteDuration: number;
 }
 
 
@@ -29,7 +30,8 @@ type RoomMetaData = {
     maxPlayersInRoom: number;
     playersInRoom: number;
     activePlayersIds: string;
-    phaseDuration: number;
+    discussDuration: number;
+    voteDuration: number;
 };
 
 export type DynamicFields = {
@@ -47,7 +49,8 @@ export type GameRoomMetaData = {
     phase: string;
     phaseEndAt: number;
     round: number;
-    phaseDuration: number;
+    discussDuration: number;
+    voteDuration: number;
 }
 
 export interface GameState {
@@ -65,6 +68,6 @@ export interface InGamePlayer {
     role: string;
 }
 
-type DynamicGameRoomMetaData = Omit<GameRoomMetaData, 'phaseDuration'>
+type DynamicGameRoomMetaData = Omit<GameRoomMetaData, 'discussDuration' | 'voteDuration'>
 
 export type RedisGameRoom = DynamicGameRoomMetaData & DynamicFields;
