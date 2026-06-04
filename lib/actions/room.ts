@@ -131,6 +131,8 @@ export async function startGame(roomCode: string): Promise<ActionResponse> {
         const initialGameState: Record<string, string | number> = {
             roomStatus: "playing",
             round: 0,
+
+            // starting phase just to wait/ensure every players polls to the game room
             phase: "starting",
             phaseEndAt: Date.now() + (10 * 1000),
         };
