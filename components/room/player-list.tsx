@@ -1,22 +1,22 @@
 import { Player } from "@/lib/definitions";
 import { useUserCookies } from "./cookie-provider";
 import { cn } from "@/lib/utils";
-import { Hourglass, XCircle } from "lucide-react";
+import { XCircle } from "lucide-react";
 import { deletePlayer } from "@/lib/actions/room";
-import { useTransition } from "react";
+import { useState, useTransition } from "react";
 import { toast } from "sonner";
 
 export default function PlayerList({
     players,
     isHost,
     roomCode,
-    maxPlayers = 12
 }: {
     players: Player[],
     isHost: boolean,
     roomCode: string,
     maxPlayers?: number
 }) {
+    const [currentTime] = useState(() => Date.now());
     const descendingPlayers = [...(players ?? [])].sort((a, b) => a.createdAt - b.createdAt);
     const userId = useUserCookies();
     const [isPending, startTransition] = useTransition();
@@ -35,7 +35,7 @@ export default function PlayerList({
     return (
         <div className="flex flex-wrap gap-4 md:gap-6 justify-center w-full">
             {descendingPlayers.map((player) => {
-                const isStale = Date.now() - (player.lastSeen || player.createdAt) > 3500;
+                const isStale = currentTime - (player.lastSeen || player.createdAt) > 3500;
 
                 return (
                     <div
@@ -82,4 +82,4 @@ export default function PlayerList({
         </div>
     );
 }
-
+

@@ -25,12 +25,11 @@ const VOTE_DURATION_DEFAULTS = {
 }
 
 export default function RoomSettings({
-    maxPlayersInRoom, roomCode, roles, totalRoles, discussDuration, voteDuration
+    maxPlayersInRoom, roomCode, roles, discussDuration, voteDuration
 }: {
     maxPlayersInRoom: number,
     roomCode: string,
     roles: Role[],
-    totalRoles: number,
     discussDuration: number,
     voteDuration: number
 }) {
