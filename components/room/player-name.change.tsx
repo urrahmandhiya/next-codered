@@ -36,21 +36,21 @@ export default function PlayerNameChange({ roomCode, players }: { roomCode: stri
     }, [state, roomCode])
 
     return (
-        <form action={formAction}>
-            <div className="space-y-2">
-                <Label htmlFor="username" className="text-zinc-400 text-xs font-mono uppercase tracking-widest">
-                    Update Node Name
+        <form action={formAction} className="w-full">
+            <div className="flex flex-col gap-4 w-full items-center">
+                <Label htmlFor="username" className="text-sm font-mono tracking-widest text-cyan uppercase text-glow-cyan text-center">
+                    Your Identity (Node Name)
                 </Label>
-                <div className="flex w-full justify-between gap-4">
+                <div className="flex w-full items-center gap-4">
                     <Input
-                        className="bg-black border-zinc-800 text-white font-mono focus:border-cyan transition-colors"
+                        className="flex-1 h-14 bg-black/50 border-2 border-zinc-800 focus-visible:border-cyan focus-visible:ring-cyan/30 text-white font-mono text-lg md:text-xl text-center rounded-xl transition-all"
                         id="username"
                         name="username"
                         value={username}
                         onChange={(e) => setUsername(e.target.value)}
                     />
-                    <Button type="submit" variant="outline" disabled={isPending} className="border-zinc-800 hover:border-cyan hover:text-cyan transition-all">
-                        {isPending ? "..." : "Update"}
+                    <Button type="submit" variant="outline" disabled={isPending} className="h-14 px-6 md:px-8 rounded-xl border-2 border-cyan/50 text-cyan hover:border-cyan hover:text-black hover:bg-cyan hover:shadow-[0_0_15px_rgba(6,182,212,0.4)] transition-all uppercase tracking-widest font-mono font-bold">
+                        {isPending ? "..." : "SAVE"}
                     </Button>
                 </div>
             </div>

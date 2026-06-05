@@ -9,6 +9,8 @@ import { useUserCookies } from "./cookie-provider";
 import { useEffect, useState } from "react";
 import { Player } from "@/lib/definitions";
 
+const isDev = process.env.NEXT_PUBLIC_MODE === "DEV";
+
 export default function RoomManager() {
     const roomCode = String(useParams().roomcode);
     const router = useRouter();
@@ -16,7 +18,7 @@ export default function RoomManager() {
     const [hasFetched, setHasFetched] = useState(false);
 
     const { data, error } = useSWR(roomCode, updateRoomState, {
-        refreshInterval: 3000,
+        refreshInterval: isDev ? 0 : 5000,
         revalidateOnFocus: false,
         revalidateOnReconnect: false,
         revalidateIfStale: true,
