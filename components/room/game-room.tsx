@@ -3,11 +3,16 @@ import useSWR from "swr";
 import UpdateButton from "./update-button";
 import { useEffect, useState } from "react";
 import { updateGameState } from "@/lib/data";
+import { Field, FieldContent, FieldLabel, FieldTitle } from "../ui/field";
+import { RadioGroup, RadioGroupItem } from "../ui/radio-group";
+import { Button } from "../ui/button";
 
 const isDev = process.env.NEXT_PUBLIC_MODE === "DEV";
 
 export default function GameRoom({ roomCode }: { roomCode: string }) {
     const [duration, setDuration] = useState(0);
+    const [voteValue, setVoteValue] = useState("")
+
     const { data, mutate } = useSWR(`gameState-${roomCode}`, () => updateGameState(roomCode), {
         refreshInterval: isDev ? 0 : 5000,
         revalidateOnFocus: false,
@@ -16,9 +21,11 @@ export default function GameRoom({ roomCode }: { roomCode: string }) {
     });
     const user = data?.user;
     const role = user?.role;
-    const serverDuration = Math.floor(Number(data?.phaseEndAt)/ 1000);
+    const serverDuration = Math.floor(Number(data?.phaseEndAt) / 1000);
     const phase = data?.phase;
     const round = data?.round;
+    const players = data?.players;
+    const isVoting = phase?.endsWith("Vote");
 
     useEffect(() => {
         const updateTimer = (time: number) => {
@@ -56,6 +63,29 @@ export default function GameRoom({ roomCode }: { roomCode: string }) {
                     </div>
                 </CardContent>
             </Card>
+            {isVoting &&
+                <Card>
+                    <CardContent>
+                        <div className="flex flex-wrap gap-4 md:gap-6 justify-center w-full">
+                            <RadioGroup className="max-w-sm" value={voteValue} onValueChange={setVoteValue}>
+                                {players?.map((player) => {
+                                    return (
+                                        <FieldLabel htmlFor={player.id} key={player.id}>
+                                            <Field orientation="horizontal">
+                                                <FieldContent>
+                                                    <FieldTitle>{player.name}</FieldTitle>
+                                                </FieldContent>
+                                                <RadioGroupItem value={player.id} id={player.id} />
+                                            </Field>
+                                        </FieldLabel>
+                                    )
+                                })}
+                            </RadioGroup>
+                            <Button onClick={() => setVoteValue("")}>Not Voting</Button>
+                        </div>
+                    </CardContent>
+                </Card>
+            }
             <Card>
                 <CardContent>
                     <p>You are: {user && user.name}</p>
