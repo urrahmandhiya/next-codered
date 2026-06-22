@@ -40,8 +40,7 @@ export async function getGameState(roomCode: string): Promise<{ gameState: GameS
     const [isResolver, data] = await redis.eval(gatekeepScript, [key], [currentTime]) as [boolean, GameRoomMetaData];
     let updatedState = {};
 
-    // still prone to deadlock (resolver failed to update and writeback)
-    // implement resolver duration (timelimit) to prevent deadlock later
+    // still prone to deadlock (resolver failed to update and writeback) // implement resolver duration (timelimit) to prevent deadlock later
     if (isResolver) {
         console.log("CALCULATING SOMETHING")
         const ROUND_0_PHASE = {
@@ -139,9 +138,10 @@ export async function getGameState(roomCode: string): Promise<{ gameState: GameS
                 }
             }),
         phase: gameData.phase,
-        phaseEndAt: Number(gameData.phaseEndAt - Date.now()),
+        phaseEndAt: Number(gameData.phaseEndAt),
         round: gameData.round,
     }
+    console.log("potato", gameState.phaseEndAt)
 
     return { gameState, activePlayersIds };
 }
