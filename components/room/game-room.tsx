@@ -6,6 +6,7 @@ import { updateGameState } from "@/lib/data";
 import { Field, FieldContent, FieldLabel, FieldTitle } from "../ui/field";
 import { RadioGroup, RadioGroupItem } from "../ui/radio-group";
 import { Button } from "../ui/button";
+import clsx from "clsx";
 
 const isDev = process.env.NEXT_PUBLIC_MODE === "DEV";
 
@@ -28,6 +29,7 @@ export default function GameRoom({ roomCode }: { roomCode: string }) {
     const round = data?.round;
     const players = data?.players;
     const isVoting = phase?.endsWith("Vote");
+    const userSide = user?.side;
 
     useEffect(() => {
         if (!serverPhaseEndAt) return;
@@ -79,7 +81,7 @@ export default function GameRoom({ roomCode }: { roomCode: string }) {
                     </div>
                 </CardContent>
             </Card>
-            {isVoting &&
+            {(isVoting && phase == "hangVote") &&
                 <Card>
                     <CardContent>
                         <div className="flex flex-wrap gap-4 md:gap-6 justify-center w-full">
@@ -89,13 +91,44 @@ export default function GameRoom({ roomCode }: { roomCode: string }) {
                                         <FieldLabel htmlFor={player.id} key={player.id}>
                                             <Field orientation="horizontal">
                                                 <FieldContent>
-                                                    <FieldTitle>{player.name}</FieldTitle>
+                                                    <FieldTitle className={clsx({
+                                                        'text-red-500': player.side === 'bad',
+                                                    })}>
+                                                        {player.name}
+                                                    </FieldTitle>
                                                 </FieldContent>
                                                 <RadioGroupItem value={player.id} id={player.id} />
                                             </Field>
                                         </FieldLabel>
                                     )
                                 })}
+                            </RadioGroup>
+                            <Button onClick={() => setVoteValue("")}>Not Voting</Button>
+                        </div>
+                    </CardContent>
+                </Card>
+            }
+            {(isVoting && phase === "killVote" && userSide === "bad") &&
+                <Card>
+                    <CardContent>
+                        <div className="flex flex-wrap gap-4 md:gap-6 justify-center w-full">
+                            <RadioGroup className="max-w-sm" value={voteValue} onValueChange={setVoteValue}>
+                                {players
+                                    ?.filter((player) => player.side !== "bad")
+                                    .map((player) => {
+                                        return (
+                                            <FieldLabel htmlFor={player.id} key={player.id}>
+                                                <Field orientation="horizontal">
+                                                    <FieldContent>
+                                                        <FieldTitle>
+                                                            {player.name}
+                                                        </FieldTitle>
+                                                    </FieldContent>
+                                                    <RadioGroupItem value={player.id} id={player.id} />
+                                                </Field>
+                                            </FieldLabel>
+                                        )
+                                    })}
                             </RadioGroup>
                             <Button onClick={() => setVoteValue("")}>Not Voting</Button>
                         </div>

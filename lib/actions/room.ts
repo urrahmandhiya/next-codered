@@ -3,12 +3,16 @@
 import { Redis } from "@upstash/redis";
 import { Lock } from "@upstash/lock";
 import { cookies } from "next/headers";
-import { ActionResponse, RedisRoom, Role, Room } from "../definitions";
+import { ActionResponse, DynamicFields, RedisRoom, Role, Room } from "../definitions";
 import { revalidatePath } from "next/cache";
 
 const redis = Redis.fromEnv();
 const MINIMAL_CURRENTPLAYERS = 4;
 const CURRENT_ROLES = ["werewolf", "villager"];
+const ROLES_SIDES: DynamicFields = {
+    werewolf: "bad",
+    villager: "good",
+}
 const rolesFallback = CURRENT_ROLES.map((role) => ({ name: role, amount: 1 }));
 
 export async function getRoomState(roomCode: string): Promise<{ room: Room | null; userId: string | undefined }> {
@@ -94,7 +98,7 @@ export async function startGame(roomCode: string): Promise<ActionResponse> {
     try {
         const rolesFields = CURRENT_ROLES.map((role) => `r:${role}`);
         const roomData = await redis.hmget(key, "playersInRoom", "roomStatus", ...rolesFields) as Record<string, string> | null;
-        
+
         if (!roomData) {
             throw new Error("Room not found");
         }
@@ -144,6 +148,7 @@ export async function startGame(roomCode: string): Promise<ActionResponse> {
                 if (playerIdx < shuffledPlayers.length) {
                     initialGameState[`p:${shuffledPlayers[playerIdx]}:role`] = role;
                     initialGameState[`p:${shuffledPlayers[playerIdx]}:status`] = "alive";
+                    initialGameState[`p:${shuffledPlayers[playerIdx]}:side`] = ROLES_SIDES[role];
                     playerIdx++;
                 }
             }
@@ -250,17 +255,17 @@ export async function deletePlayer(roomCode: string, id: string): Promise<Action
         }
 
         const deletedFieldsCount = await redis.hdel(key, `p:${id}:name`, `p:${id}:createdAt`, `p:${id}:lastSeen`, `p:${id}:role`);
-        
+
         if (deletedFieldsCount >= 2) {
             const newCurrentPlayer = playersInRoom - 1;
             const pipeline = redis.pipeline();
-            
+
             if (newCurrentPlayer <= 0) {
                 // Room is empty, delete it entirely
                 pipeline.del(key);
                 pipeline.del(activePlayersIdsKey);
                 await pipeline.exec();
-                
+
                 revalidatePath(`/room/${roomCode}`);
                 return { success: true, message: `Room deleted as the last player left` };
             }
@@ -275,10 +280,10 @@ export async function deletePlayer(roomCode: string, id: string): Promise<Action
                 if (remainingIds.length > 0) {
                     const fieldsToGet = remainingIds.map(pId => `p:${pId}:createdAt`);
                     const createdTimes = await redis.hmget(key, ...fieldsToGet) as Record<string, string>;
-                    
+
                     let nextHostId = remainingIds[0];
                     let minCreatedAt = Infinity;
-                    
+
                     remainingIds.forEach((pId) => {
                         const fieldName = `p:${pId}:createdAt`;
                         const cTime = Number(createdTimes[fieldName] || Infinity);
@@ -287,13 +292,13 @@ export async function deletePlayer(roomCode: string, id: string): Promise<Action
                             nextHostId = pId;
                         }
                     });
-                    
+
                     pipeline.hset(key, { roomHostId: nextHostId });
                 }
             }
-            
+
             await pipeline.exec();
-            
+
             revalidatePath(`/room/${roomCode}`);
             return { success: true, message: `Player ${deletedPlayerName} deleted successfully` };
         } else {

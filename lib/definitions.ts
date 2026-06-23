@@ -66,6 +66,7 @@ export interface InGamePlayer {
     name: string;
     status: string;
     role: string;
+    side: string;
 }
 
 type DynamicGameRoomMetaData = Omit<GameRoomMetaData, 'discussDuration' | 'voteDuration'>
