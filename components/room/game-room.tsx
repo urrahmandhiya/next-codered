@@ -1,18 +1,18 @@
 import { Card, CardContent } from "../ui/card";
 import useSWR from "swr";
-import UpdateButton from "./update-button";
 import { useEffect, useRef, useState } from "react";
 import { updateGameState } from "@/lib/data";
 import { Field, FieldContent, FieldLabel, FieldTitle } from "../ui/field";
 import { RadioGroup, RadioGroupItem } from "../ui/radio-group";
 import { Button } from "../ui/button";
 import clsx from "clsx";
+import { getPlayerVote } from "@/lib/actions/game";
 
 const isDev = process.env.NEXT_PUBLIC_MODE === "DEV";
 
 export default function GameRoom({ roomCode }: { roomCode: string }) {
     const [duration, setDuration] = useState(0);
-    const [voteValue, setVoteValue] = useState("")
+    const [voteValue, setVoteValue] = useState("none")
     const isPollingRef = useRef(false);
 
     const { data, mutate } = useSWR(`gameState-${roomCode}`, () => updateGameState(roomCode), {
@@ -28,12 +28,41 @@ export default function GameRoom({ roomCode }: { roomCode: string }) {
     const phase = data?.phase;
     const round = data?.round;
     const players = data?.players;
-    const isVoting = phase?.endsWith("Vote");
-    const userSide = user?.side;
+    const isHangVoting = phase === "hangVote";
+    const isKillVoting = phase === "killVote";
+    const isUserBadSide = user?.side === "bad";
+    const isCounting = phase?.endsWith("Count");
+    const isResulting = phase?.endsWith("Result");
 
     useEffect(() => {
         if (!serverPhaseEndAt) return;
         isPollingRef.current = false;
+
+        const handleMutate = async () => {
+            try {
+                if (isHangVoting) {
+                    console.log(voteValue === "none"
+                        ? "[Getting Vote] not voting"
+                        : "[Getting Vote] voting for", players?.filter((player) => player.id === voteValue)[0].name);
+                    await getPlayerVote(roomCode, voteValue);
+                }
+                if (isKillVoting && isUserBadSide) {
+                    console.log(voteValue === "none"
+                        ? "[Getting Vote] not voting"
+                        : "[Getting Vote] voting for", players?.filter((player) => player.id === voteValue)[0].name);
+                    await getPlayerVote(roomCode, voteValue);
+                }
+                const result = await mutate();
+                console.log("[Phase Transition] into", result?.phase);
+
+                isPollingRef.current = true;
+                console.log("[Force Polling]")
+            } catch (error) {
+                console.log(error instanceof Error ? error.message : error)
+                isPollingRef.current = true;
+                console.log("[Force Polling]")
+            }
+        }
 
         const tick = () => {
             const remaining = Math.ceil((serverPhaseEndAt - Date.now()) / 1000);
@@ -42,10 +71,7 @@ export default function GameRoom({ roomCode }: { roomCode: string }) {
             if (remaining <= 0) {
                 setDuration(0)
                 if (!isDev) {
-                    mutate(undefined, { revalidate: true }).then((res) => {
-                        if (res?.phaseEndAt === serverPhaseEndAt) isPollingRef.current = true;
-                    });
-                    console.log("force polling...")
+                    handleMutate();
                 }
                 return true;
             }
@@ -60,14 +86,13 @@ export default function GameRoom({ roomCode }: { roomCode: string }) {
         }, 500);
 
         return () => clearInterval(id);
-    }, [serverPhaseEndAt, mutate])
+    }, [mutate, phase, roomCode, serverPhaseEndAt, voteValue])
 
     const minutes = String(Math.round(duration / 60)).padStart(2, "0");
     const seconds = String(duration % 60).padStart(2, "0");
 
     return (
         <>
-            {isDev && <UpdateButton onUpdate={() => mutate()} />}
             <Card>
                 <CardContent>
                     <div className="flex">
@@ -81,7 +106,7 @@ export default function GameRoom({ roomCode }: { roomCode: string }) {
                     </div>
                 </CardContent>
             </Card>
-            {(isVoting && phase == "hangVote") &&
+            {(isHangVoting) &&
                 <Card>
                     <CardContent>
                         <div className="flex flex-wrap gap-4 md:gap-6 justify-center w-full">
@@ -103,12 +128,12 @@ export default function GameRoom({ roomCode }: { roomCode: string }) {
                                     )
                                 })}
                             </RadioGroup>
-                            <Button onClick={() => setVoteValue("")}>Not Voting</Button>
+                            <Button onClick={() => setVoteValue("none")}>Not Voting</Button>
                         </div>
                     </CardContent>
                 </Card>
             }
-            {(isVoting && phase === "killVote" && userSide === "bad") &&
+            {(isKillVoting && isUserBadSide) &&
                 <Card>
                     <CardContent>
                         <div className="flex flex-wrap gap-4 md:gap-6 justify-center w-full">
@@ -132,6 +157,20 @@ export default function GameRoom({ roomCode }: { roomCode: string }) {
                             </RadioGroup>
                             <Button onClick={() => setVoteValue("")}>Not Voting</Button>
                         </div>
+                    </CardContent>
+                </Card>
+            }
+            {(isCounting) &&
+                <Card>
+                    <CardContent>
+                        {isUserBadSide ? "COUNTING VOTES...." : "WAITING FOR MORNING"}
+                    </CardContent>
+                </Card>
+            }
+            {(isResulting) &&
+                <Card>
+                    <CardContent>
+                        HERE IS THE RESULT....
                     </CardContent>
                 </Card>
             }

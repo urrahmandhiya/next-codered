@@ -2,7 +2,7 @@
 
 import { Redis } from "@upstash/redis";
 import { cookies } from "next/headers";
-import { DynamicFields, GameRoomMetaData, GameState, RedisGameRoom } from "../definitions";
+import { ActionResponse, DynamicFields, GameRoomMetaData, GameState, RedisGameRoom } from "../definitions";
 
 const redis = Redis.fromEnv();
 
@@ -47,21 +47,47 @@ export async function getGameState(roomCode: string): Promise<{ gameState: GameS
             starting: "night",
             night: "day",
             day: "hangVote",
-            hangVote: "night",
+            hangVote: "hangVoteCount",
+            hangVoteCount: "hangVoteResult",
+            hangVoteResult: "night",
         }
         const ROUND_1_PHASE = {
             night: "killVote",
-            killVote: "day",
+            killVote: "killVoteCount",
+            killVoteCount: "killVoteResult",
+            killVoteResult: "day",
             day: "hangVote",
-            hangVote: "night",
+            hangVote: "hangVoteCount",
+            hangVoteCount: "hangVoteResult",
+            hangVoteResult: "night",
         }
         const phaseState: DynamicFields = data.round > 0 ? ROUND_1_PHASE : ROUND_0_PHASE;
         const nextPhase = String(phaseState[data.phase]);
         const isNextRound = nextPhase === "day";
+        const nextPhaseWords = nextPhase.split(/(?=[A-Z])/);
+        const phaseType = nextPhaseWords[nextPhaseWords.length - 1];
+        let phaseEndAtDuration: number;
+
+        switch (phaseType) {
+            case "Vote":
+                phaseEndAtDuration = data.voteDuration;
+                break;
+            case "Count":
+                phaseEndAtDuration = 5;
+                break;
+            case "Result":
+                phaseEndAtDuration = 5;
+                break;
+            default:
+                phaseEndAtDuration = data.discussDuration;
+                break;
+        }
+        console.log("[Current Phase] ", nextPhase);
+        console.log("[Duration] ", phaseEndAtDuration);
 
         updatedState = {
             phase: nextPhase,
-            phaseEndAt: Date.now() + ((nextPhase.endsWith("Vote") ? data.voteDuration : data.discussDuration) * 1000),
+            phaseEndAt: Date.now() + (phaseEndAtDuration * 1000),
             round: isNextRound ? Number(data.round) + 1 : Number(data.round),
         };
     };
@@ -177,4 +203,19 @@ export async function getGameState(roomCode: string): Promise<{ gameState: GameS
     }
 
     return { gameState, activePlayersIds };
+}
+
+export async function getPlayerVote(roomCode: string, voteId: string): Promise<ActionResponse> {
+    const userId = (await cookies()).get("user_id")?.value;
+    const key = `room:${roomCode}`;
+    console.log("get user vote...")
+    try {
+        await redis.hset(key, { [`p:${userId}:vote`]: voteId })
+        return { success: true, message: "getting player vote..." };
+    } catch (error) {
+        if (error instanceof Error) {
+            return { success: false, error: error.message }
+        }
+        return { success: false, error: String(error) };
+    }
 }
