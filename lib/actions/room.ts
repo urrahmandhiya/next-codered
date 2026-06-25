@@ -135,6 +135,7 @@ export async function startGame(roomCode: string): Promise<ActionResponse> {
         const initialGameState: Record<string, string | number> = {
             roomStatus: "playing",
             round: 0,
+            lastDeadPlayerId: "none",
 
             // starting phase just to wait/ensure every players polls to the game room
             phase: "starting",

@@ -31,8 +31,10 @@ export default function GameRoom({ roomCode }: { roomCode: string }) {
     const isHangVoting = phase === "hangVote";
     const isKillVoting = phase === "killVote";
     const isUserBadSide = user?.side === "bad";
+    const isUserAlive = user?.status === "alive";
     const isCounting = phase?.endsWith("Count");
     const isResulting = phase?.endsWith("Result");
+    const lastDeadPlayerName = data?.lastDeadPlayerName;
 
     useEffect(() => {
         if (!serverPhaseEndAt) return;
@@ -40,16 +42,20 @@ export default function GameRoom({ roomCode }: { roomCode: string }) {
 
         const handleMutate = async () => {
             try {
-                if (isHangVoting) {
-                    console.log(voteValue === "none"
-                        ? "[Getting Vote] not voting"
-                        : "[Getting Vote] voting for", players?.filter((player) => player.id === voteValue)[0].name);
+                if (phase === "hangVote") {
+                    if (voteValue === "none") {
+                        console.log("[Getting Vote] not voting")
+                    } else {
+                        console.log("[Getting Vote] voting for", players?.filter((player) => player.id === voteValue)[0].name)
+                    }
                     await getPlayerVote(roomCode, voteValue);
                 }
-                if (isKillVoting && isUserBadSide) {
-                    console.log(voteValue === "none"
-                        ? "[Getting Vote] not voting"
-                        : "[Getting Vote] voting for", players?.filter((player) => player.id === voteValue)[0].name);
+                if (phase === "killVote" && user?.side === "bad") {
+                    if (voteValue === "none") {
+                        console.log("[Getting Vote] not voting")
+                    } else {
+                        console.log("[Getting Vote] voting for", players?.filter((player) => player.id === voteValue)[0].name)
+                    }
                     await getPlayerVote(roomCode, voteValue);
                 }
                 const result = await mutate();
@@ -106,7 +112,14 @@ export default function GameRoom({ roomCode }: { roomCode: string }) {
                     </div>
                 </CardContent>
             </Card>
-            {(isHangVoting) &&
+            {(!isUserAlive) &&
+                <Card>
+                    <CardContent>
+                        YOU ARE DEAD
+                    </CardContent>
+                </Card>
+            }
+            {(isHangVoting && isUserAlive) &&
                 <Card>
                     <CardContent>
                         <div className="flex flex-wrap gap-4 md:gap-6 justify-center w-full">
@@ -120,9 +133,10 @@ export default function GameRoom({ roomCode }: { roomCode: string }) {
                                                         'text-red-500': player.side === 'bad',
                                                     })}>
                                                         {player.name}
+                                                        {player.status === "dead" && <span>DEAD</span>}
                                                     </FieldTitle>
                                                 </FieldContent>
-                                                <RadioGroupItem value={player.id} id={player.id} />
+                                                <RadioGroupItem value={player.id} id={player.id} disabled={player.status === "dead"} />
                                             </Field>
                                         </FieldLabel>
                                     )
@@ -133,7 +147,7 @@ export default function GameRoom({ roomCode }: { roomCode: string }) {
                     </CardContent>
                 </Card>
             }
-            {(isKillVoting && isUserBadSide) &&
+            {(isKillVoting && isUserBadSide && isUserAlive) &&
                 <Card>
                     <CardContent>
                         <div className="flex flex-wrap gap-4 md:gap-6 justify-center w-full">
@@ -149,28 +163,28 @@ export default function GameRoom({ roomCode }: { roomCode: string }) {
                                                             {player.name}
                                                         </FieldTitle>
                                                     </FieldContent>
-                                                    <RadioGroupItem value={player.id} id={player.id} />
+                                                    <RadioGroupItem value={player.id} id={player.id} disabled={player.status === "dead"} />
                                                 </Field>
                                             </FieldLabel>
                                         )
                                     })}
                             </RadioGroup>
-                            <Button onClick={() => setVoteValue("")}>Not Voting</Button>
+                            <Button onClick={() => setVoteValue("none")}>Not Voting</Button>
                         </div>
                     </CardContent>
                 </Card>
             }
-            {(isCounting) &&
+            {(isCounting && isUserAlive) &&
                 <Card>
                     <CardContent>
                         {isUserBadSide ? "COUNTING VOTES...." : "WAITING FOR MORNING"}
                     </CardContent>
                 </Card>
             }
-            {(isResulting) &&
+            {(isResulting && isUserAlive) &&
                 <Card>
                     <CardContent>
-                        HERE IS THE RESULT....
+                        {lastDeadPlayerName} is dead;
                     </CardContent>
                 </Card>
             }
