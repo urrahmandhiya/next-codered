@@ -60,7 +60,7 @@ export interface GameState {
     round: number;
     user: InGamePlayer;
     players: InGamePlayer[];
-    lastDeadPlayerName: string;
+    lastDeadPlayerId: string;
 }
 
 export interface InGamePlayer {

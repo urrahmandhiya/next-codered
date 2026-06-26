@@ -37,7 +37,7 @@ export async function getGameState(roomCode: string): Promise<{ gameState: GameS
     return {isResolver, cjson.encode(data)}
     `;
 
-    const [isResolver, data] = await redis.eval(gatekeepScript, [key], [currentTime]) as [boolean,  Omit<GameRoomMetaData, "lastDeadPlayerId">];
+    const [isResolver, data] = await redis.eval(gatekeepScript, [key], [currentTime]) as [boolean, Omit<GameRoomMetaData, "lastDeadPlayerId">];
     let updatedState = {};
 
     // still prone to deadlock (resolver failed to update and writeback) // implement resolver duration (timelimit) to prevent deadlock later
@@ -136,6 +136,7 @@ export async function getGameState(roomCode: string): Promise<{ gameState: GameS
     local userId = ARGV[1]
     local key = KEYS[1]
     local activePlayersIdsKey = key .. ':activePlayersIds'
+    local deadPlayersIdsKey = key .. ':deadPlayersIds'
     local updatedState = cjson.decode(ARGV[2])
 
     -- check if its a phase transitioning poll
@@ -143,11 +144,18 @@ export async function getGameState(roomCode: string): Promise<{ gameState: GameS
         local roundCount = redis.call('HGET', key, 'round')
         local currentPhase = redis.call('HGET', key, 'phase')
 
-        -- if vote result is not tied, execute the voted player
+        -- if vote result is not tied or none
         if updatedState.votedPlayerId ~= "none" then
+            -- execute the voted player
             local votedPlayerStatus = 'p:' .. updatedState.votedPlayerId .. ':status'
             local deadPlayerId = updatedState.votedPlayerId
             redis.call('HSET', key, votedPlayerStatus, 'dead', 'lastDeadPlayerId', updatedState.votedPlayerId)
+            redis.call('SADD', deadPlayersIdsKey, deadPlayerId)
+
+            -- and reduce its side amount
+            local deadPlayerSide = 'p:' .. deadPlayerId .. ':side'
+            local decreasedSide = redis.call('HGET', key, deadPlayerSide)
+            redis.call('HINCRBY', key, decreasedSide .. 'Side', -1)
         end
 
         -- clean lastDeadPlayerId after count phases
@@ -173,7 +181,6 @@ export async function getGameState(roomCode: string): Promise<{ gameState: GameS
    
     -- assigning side to each player
     -- so bad sides can see each other
-
     local sideFields = {}
     local otherPlayerIds = {}
     
@@ -191,6 +198,17 @@ export async function getGameState(roomCode: string): Promise<{ gameState: GameS
         sides[id] = sideValue[i]
     end
 
+    local deadPlayerIds = redis.call('SMEMBERS', deadPlayersIdsKey)
+
+    local function includes(tbl, target)
+        for _, val in ipairs(tbl) do
+            if (val == target) then
+                return true
+            end
+        end
+        return false
+    end
+
     for i = 1, #playerIds, 1 do
         if playerIds[i] == userId then
             table.insert(gameStateFields, 'p:' .. playerIds[i] .. ':name')
@@ -201,7 +219,7 @@ export async function getGameState(roomCode: string): Promise<{ gameState: GameS
             table.insert(gameStateFields, 'p:' .. playerIds[i] .. ':name')
             table.insert(gameStateFields, 'p:' .. playerIds[i] .. ':status')
 
-            if playerSide == 'bad' and sides[playerIds[i]] == 'bad' then
+            if (playerSide == 'bad' and sides[playerIds[i]] == 'bad') or (includes(deadPlayerIds, playerIds[i])) then
                 table.insert(gameStateFields, 'p:' .. playerIds[i] .. ':side')
                 table.insert(gameStateFields, 'p:' .. playerIds[i] .. ':role')
             end
@@ -225,7 +243,6 @@ export async function getGameState(roomCode: string): Promise<{ gameState: GameS
 
     const lastDeadPlayerId = gameData.lastDeadPlayerId;
     console.log("[lastDeadPlayerId]", lastDeadPlayerId)
-    const userSide = gameData[`p:${userId}:side`];
 
     const gameState = {
         user: {
@@ -243,7 +260,8 @@ export async function getGameState(roomCode: string): Promise<{ gameState: GameS
                 let role = 'unknown';
                 let side = 'unknown';
 
-                if (userSide === 'bad' && gameData[`p:${id}:side`] === 'bad') {
+                // bad sides can see each other and dead players are revealed
+                if (gameData[`p:${id}:role`] && gameData[`p:${id}:side`]) {
                     role = String(gameData[`p:${id}:role`]);
                     side = String(gameData[`p:${id}:side`]);
                 }
@@ -259,7 +277,7 @@ export async function getGameState(roomCode: string): Promise<{ gameState: GameS
         phase: gameData.phase,
         phaseEndAt: Number(gameData.phaseEndAt),
         round: gameData.round,
-        lastDeadPlayerName: lastDeadPlayerId === "none" ? "none" : String(gameData[`p:${lastDeadPlayerId}:name`]),
+        lastDeadPlayerId: lastDeadPlayerId === "none" ? "none" : lastDeadPlayerId,
     }
 
     return { gameState, activePlayersIds };

@@ -136,10 +136,12 @@ export async function startGame(roomCode: string): Promise<ActionResponse> {
             roomStatus: "playing",
             round: 0,
             lastDeadPlayerId: "none",
+            goodSide: 0,
+            badSide: 0,
 
             // starting phase just to wait/ensure every players polls to the game room
             phase: "starting",
-            phaseEndAt: Date.now() + (10 * 1000),
+            phaseEndAt: Date.now() + (15 * 1000),
         };
 
         let playerIdx = 0;
@@ -150,6 +152,14 @@ export async function startGame(roomCode: string): Promise<ActionResponse> {
                     initialGameState[`p:${shuffledPlayers[playerIdx]}:role`] = role;
                     initialGameState[`p:${shuffledPlayers[playerIdx]}:status`] = "alive";
                     initialGameState[`p:${shuffledPlayers[playerIdx]}:side`] = ROLES_SIDES[role];
+
+                    if (ROLES_SIDES[role] === "bad") {
+                        initialGameState.badSide = Number(initialGameState.badSide) + 1;
+                    }
+
+                    if (ROLES_SIDES[role] === "good") {
+                        initialGameState.goodSide = Number(initialGameState.goodSide) + 1;
+                    }
                     playerIdx++;
                 }
             }

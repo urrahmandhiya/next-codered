@@ -7,6 +7,7 @@ import { RadioGroup, RadioGroupItem } from "../ui/radio-group";
 import { Button } from "../ui/button";
 import clsx from "clsx";
 import { getPlayerVote } from "@/lib/actions/game";
+import { InGamePlayer } from "@/lib/definitions";
 
 const isDev = process.env.NEXT_PUBLIC_MODE === "DEV";
 
@@ -34,7 +35,7 @@ export default function GameRoom({ roomCode }: { roomCode: string }) {
     const isUserAlive = user?.status === "alive";
     const isCounting = phase?.endsWith("Count");
     const isResulting = phase?.endsWith("Result");
-    const lastDeadPlayerName = data?.lastDeadPlayerName;
+    const lastDeadPlayer: InGamePlayer = (players ?? [])?.filter((player) => player.id === data?.lastDeadPlayerId)[0];
 
     useEffect(() => {
         if (!serverPhaseEndAt) return;
@@ -184,7 +185,16 @@ export default function GameRoom({ roomCode }: { roomCode: string }) {
             {(isResulting && isUserAlive) &&
                 <Card>
                     <CardContent>
-                        {lastDeadPlayerName} is dead;
+                        {(lastDeadPlayer)
+                            ?
+                            <span>
+                                {lastDeadPlayer.name} the {lastDeadPlayer.role} the is dead
+                            </span>
+                            :
+                            <span>
+                                no one is dead
+                            </span>
+                        }
                     </CardContent>
                 </Card>
             }
