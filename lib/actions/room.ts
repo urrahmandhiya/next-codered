@@ -138,6 +138,7 @@ export async function startGame(roomCode: string): Promise<ActionResponse> {
             lastDeadPlayerId: "none",
             goodSide: 0,
             badSide: 0,
+            endGame: "inProgress",
 
             // starting phase just to wait/ensure every players polls to the game room
             phase: "starting",

@@ -18,6 +18,9 @@ export async function getGameState(roomCode: string): Promise<{ gameState: GameS
         'voteDuration',
         'round',
         'phaseEndAt',
+        'badSide',
+        'goodSide',
+        'endGame',
     }
 
     local value = redis.call('HMGET', KEYS[1], unpack(gameStateFields))
@@ -40,8 +43,9 @@ export async function getGameState(roomCode: string): Promise<{ gameState: GameS
     const [isResolver, data] = await redis.eval(gatekeepScript, [key], [currentTime]) as [boolean, Omit<GameRoomMetaData, 'lastDeadPlayerId' | 'voterByCandidate'>];
     let updatedState = {};
 
-    // still prone to deadlock (resolver failed to update and writeback) // implement resolver duration (timelimit) to prevent deadlock later
-    if (isResolver) {
+    // still prone to deadlock (resolver failed to update and writeback) 
+    // implement resolver duration (timelimit) to prevent deadlock later
+    if (isResolver && data.endGame === "inProgress") {
         console.log("CALCULATING SOMETHING")
         const ROUND_0_PHASE = {
             starting: "night",
@@ -64,8 +68,10 @@ export async function getGameState(roomCode: string): Promise<{ gameState: GameS
         const phaseState: DynamicFields = data.round > 0 ? ROUND_1_PHASE : ROUND_0_PHASE;
         const nextPhase = String(phaseState[data.phase]);
         const isNextRound = nextPhase === "day";
+
         const nextPhaseWords = nextPhase.split(/(?=[A-Z])/);
         const phaseType = nextPhaseWords[nextPhaseWords.length - 1];
+
         const isVoting = data.phase.endsWith("Vote");
         let phaseEndAtDuration: number;
 
@@ -85,7 +91,6 @@ export async function getGameState(roomCode: string): Promise<{ gameState: GameS
         }
         console.log("[Current Phase] ", nextPhase);
         console.log("[Duration] ", phaseEndAtDuration);
-
 
         let votedPlayerIds: string[] = [];
         const voterByCandidate: Record<string, string[]> = {};
@@ -144,12 +149,26 @@ export async function getGameState(roomCode: string): Promise<{ gameState: GameS
             })
         }
 
+        let endGame = "inProgress";
+        const isGoodWon = Number(data.badSide) === 0;
+        const isBadWon = Number(data.goodSide) === 0;
+        const isGameEnd = (isBadWon || isGoodWon) && (nextPhase === "night" || nextPhase === "day");
+
+        if (isGameEnd) {
+            if (isGoodWon) endGame = "goodEnd";
+            if (isBadWon) endGame = "badEnd";
+        }
+        console.log("[Game End]", isGameEnd)
+        console.log("[Good Side]", data.goodSide, isGoodWon)
+        console.log("[Bad Side]", data.badSide, isBadWon)
+
         updatedState = {
             phase: nextPhase,
             phaseEndAt: Date.now() + (phaseEndAtDuration * 1000),
             round: isNextRound ? Number(data.round) + 1 : Number(data.round),
             votedPlayerId: (isVoting && votedPlayerIds.length === 1) ? votedPlayerIds[0] : "none",
             voterByCandidate: JSON.stringify(voterByCandidate),
+            endGame: endGame,
         };
     };
 
@@ -189,11 +208,13 @@ export async function getGameState(roomCode: string): Promise<{ gameState: GameS
             'phase', updatedState.phase,
             'phaseEndAt', updatedState.phaseEndAt,
             'round', updatedState.round,
-            'voterByCandidate', updatedState.voterByCandidate
+            'voterByCandidate', updatedState.voterByCandidate,
+            'endGame', updatedState.endGame
         )
     end
 
     local playerIds = redis.call('SMEMBERS', activePlayersIdsKey)
+    local endGame = redis.call('HGET', key, 'endGame')
     local playerSide = redis.call('HGET', key, 'p:' .. userId .. ':side')
     local gameStateFields = {
         'phase',
@@ -201,6 +222,7 @@ export async function getGameState(roomCode: string): Promise<{ gameState: GameS
         'round',
         'lastDeadPlayerId',
         'voterByCandidate',
+        'endGame', 
     }
    
     -- assigning side to each player
@@ -243,7 +265,9 @@ export async function getGameState(roomCode: string): Promise<{ gameState: GameS
             table.insert(gameStateFields, 'p:' .. playerIds[i] .. ':name')
             table.insert(gameStateFields, 'p:' .. playerIds[i] .. ':status')
 
-            if (playerSide == 'bad' and sides[playerIds[i]] == 'bad') or (includes(deadPlayersIds, playerIds[i])) then
+            if (playerSide == 'bad' and sides[playerIds[i]] == 'bad') 
+                or (includes(deadPlayersIds, playerIds[i])) 
+                or (endGame ~= 'inProgress') then
                 table.insert(gameStateFields, 'p:' .. playerIds[i] .. ':side')
                 table.insert(gameStateFields, 'p:' .. playerIds[i] .. ':role')
             end
@@ -317,6 +341,7 @@ export async function getGameState(roomCode: string): Promise<{ gameState: GameS
         round: gameData.round,
         lastDeadPlayerId: lastDeadPlayerId === "none" ? "none" : lastDeadPlayerId,
         voterByCandidate: Object.keys(validVoterByCandidate).length ? validVoterByCandidate : {},
+        endGame: gameData.endGame,
     }
 
     return { gameState, activePlayersIds };

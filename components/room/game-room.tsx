@@ -37,6 +37,7 @@ export default function GameRoom({ roomCode }: { roomCode: string }) {
     const isResulting = phase?.endsWith("Result");
     const lastDeadPlayer: InGamePlayer = (players ?? [])?.filter((player) => player.id === data?.lastDeadPlayerId)[0];
     const voterByCandidate: Record<string, string[]> = data?.voterByCandidate ?? {};
+    const isStillPlaying = data?.endGame === "inProgress";
 
     useEffect(() => {
         if (!serverPhaseEndAt) return;
@@ -79,7 +80,9 @@ export default function GameRoom({ roomCode }: { roomCode: string }) {
             if (remaining <= 0) {
                 setDuration(0)
                 if (!isDev) {
-                    handleMutate();
+                    if (isStillPlaying) {
+                        handleMutate();
+                    }
                 }
                 return true;
             }
@@ -101,139 +104,177 @@ export default function GameRoom({ roomCode }: { roomCode: string }) {
 
     return (
         <>
-            <Card>
-                <CardContent>
-                    <div className="flex">
-                        <div>
-                            <span>{minutes[0]}</span><span>{minutes[1]}</span>
-                        </div>
-                        <div>:</div>
-                        <div>
-                            <span>{seconds[0]}</span><span>{seconds[1]}</span>
-                        </div>
-                    </div>
-                </CardContent>
-            </Card>
-            {(!isUserAlive) &&
+            {(isStillPlaying)
+                ?
+                <>
+                    <Card>
+                        <CardContent>
+                            <div className="flex">
+                                <div>
+                                    <span>{minutes[0]}</span><span>{minutes[1]}</span>
+                                </div>
+                                <div>:</div>
+                                <div>
+                                    <span>{seconds[0]}</span><span>{seconds[1]}</span>
+                                </div>
+                            </div>
+                        </CardContent>
+                    </Card>
+                    {(!isUserAlive) &&
+                        <Card>
+                            <CardContent>
+                                YOU ARE DEAD
+                            </CardContent>
+                        </Card>
+                    }
+                    {(isHangVoting && isUserAlive) &&
+                        <Card>
+                            <CardContent>
+                                <div className="flex flex-wrap gap-4 md:gap-6 justify-center w-full">
+                                    <RadioGroup className="max-w-sm" value={voteValue} onValueChange={setVoteValue}>
+                                        {players?.map((player) => {
+                                            return (
+                                                <FieldLabel htmlFor={player.id} key={player.id}>
+                                                    <Field orientation="horizontal">
+                                                        <FieldContent>
+                                                            <FieldTitle className={clsx({
+                                                                'text-red-500': player.side === 'bad',
+                                                            })}>
+                                                                {player.name}
+                                                                {player.status === "dead" && <span>DEAD</span>}
+                                                            </FieldTitle>
+                                                        </FieldContent>
+                                                        <RadioGroupItem value={player.id} id={player.id} disabled={player.status === "dead"} />
+                                                    </Field>
+                                                </FieldLabel>
+                                            )
+                                        })}
+                                    </RadioGroup>
+                                    <Button onClick={() => setVoteValue("none")}>Not Voting</Button>
+                                </div>
+                            </CardContent>
+                        </Card>
+                    }
+                    {(isKillVoting && isUserBadSide && isUserAlive) &&
+                        <Card>
+                            <CardContent>
+                                <div className="flex flex-wrap gap-4 md:gap-6 justify-center w-full">
+                                    <RadioGroup className="max-w-sm" value={voteValue} onValueChange={setVoteValue}>
+                                        {players
+                                            ?.filter((player) => player.side !== "bad")
+                                            .map((player) => {
+                                                return (
+                                                    <FieldLabel htmlFor={player.id} key={player.id}>
+                                                        <Field orientation="horizontal">
+                                                            <FieldContent>
+                                                                <FieldTitle>
+                                                                    {player.name}
+                                                                    {player.status === "dead" && <span>DEAD</span>}
+                                                                </FieldTitle>
+                                                            </FieldContent>
+                                                            <RadioGroupItem value={player.id} id={player.id} disabled={player.status === "dead"} />
+                                                        </Field>
+                                                    </FieldLabel>
+                                                )
+                                            })}
+                                    </RadioGroup>
+                                    <Button onClick={() => setVoteValue("none")}>Not Voting</Button>
+                                </div>
+                            </CardContent>
+                        </Card>
+                    }
+                    {(isCounting && isUserAlive && phase === "hangVoteCount") &&
+                        <Card>
+                            <CardContent>
+                                HANG VOTE RESULT
+                                <div className="flex flex-wrap gap-4 md:gap-6 justify-center w-full flex-col">
+                                    {Object.keys(voterByCandidate).length &&
+                                        Object.entries(voterByCandidate).map(([voted, voters]) =>
+                                            <div className="flex justify-center items-center" key={voted}>{voted} Voted By :
+                                                {voters.map((voter, idx) => <div key={voter}>{voter}{idx < voters.length - 1 ? ',' : ''}</div>)}
+                                            </div>
+                                        )
+                                    }
+                                </div>
+                            </CardContent>
+                        </Card>
+                    }
+                    {(isCounting && isUserAlive && phase === "killVoteCount") &&
+                        <Card>
+                            <CardContent>
+                                {isUserBadSide ? "KILL VOTE RESULT" : "WAITING FOR MORNING"}
+                                <div className="flex flex-wrap gap-4 md:gap-6 justify-center w-full flex-col">
+                                    {(!!Object.keys(voterByCandidate).length && isUserBadSide) &&
+                                        Object.entries(voterByCandidate).map(([voted, voters]) =>
+                                            <div className="flex justify-center items-center" key={voted}>{voted} Voted By :
+                                                {voters.map((voter, idx) => <div key={voter}>{voter}{idx < voters.length - 1 ? ',' : ''}</div>)}
+                                            </div>
+                                        )
+                                    }
+                                </div>
+                            </CardContent>
+                        </Card>
+                    }
+                    {(isResulting && isUserAlive) &&
+                        <Card>
+                            <CardContent>
+                                {(lastDeadPlayer)
+                                    ?
+                                    <span>
+                                        {lastDeadPlayer.name} the {lastDeadPlayer.role} the is dead
+                                    </span>
+                                    :
+                                    <span>
+                                        no one is dead
+                                    </span>
+                                }
+                            </CardContent>
+                        </Card>
+                    }
+                    <Card>
+                        <CardContent>
+                            <p>You are: {user && user.name}</p>
+                            <p>Your Role is: {role}</p>
+                            <p>Current Phase is: {phase}</p>
+                            <p>Current Round is: {round}</p>
+                            <p>This is the game room</p>
+                        </CardContent>
+                    </Card>
+                </>
+                :
                 <Card>
                     <CardContent>
-                        YOU ARE DEAD
-                    </CardContent>
-                </Card>
-            }
-            {(isHangVoting && isUserAlive) &&
-                <Card>
-                    <CardContent>
-                        <div className="flex flex-wrap gap-4 md:gap-6 justify-center w-full">
-                            <RadioGroup className="max-w-sm" value={voteValue} onValueChange={setVoteValue}>
+                        <div className="flex flex-wrap gap-4 md:gap-6 justify-center w-full flex-col">
+                            <div className="flex justify-center">
+                                <span>{data?.endGame === "goodEnd" ? "GOOD SIDE" : "BAD SIDE"} WON</span>
+                            </div>
+                            <div className="flex w-full gap-4 justify-center items-center">
+                                {user?.name}
+                                <span>{user?.status === "dead" ? "DEAD" : "ALIVE"}</span>
+                                {user?.role}
+                            </div>
+                            <div>
                                 {players?.map((player) => {
                                     return (
                                         <FieldLabel htmlFor={player.id} key={player.id}>
                                             <Field orientation="horizontal">
                                                 <FieldContent>
-                                                    <FieldTitle className={clsx({
-                                                        'text-red-500': player.side === 'bad',
-                                                    })}>
+                                                    <FieldTitle>
                                                         {player.name}
-                                                        {player.status === "dead" && <span>DEAD</span>}
+                                                        <span>{player.status === "dead" ? "DEAD" : "ALIVE"}</span>
+                                                        {player.role}
                                                     </FieldTitle>
                                                 </FieldContent>
-                                                <RadioGroupItem value={player.id} id={player.id} disabled={player.status === "dead"} />
                                             </Field>
                                         </FieldLabel>
                                     )
                                 })}
-                            </RadioGroup>
-                            <Button onClick={() => setVoteValue("none")}>Not Voting</Button>
+                            </div>
+                            <p>Round played: {data?.round}</p>
                         </div>
                     </CardContent>
                 </Card>
             }
-            {(isKillVoting && isUserBadSide && isUserAlive) &&
-                <Card>
-                    <CardContent>
-                        <div className="flex flex-wrap gap-4 md:gap-6 justify-center w-full">
-                            <RadioGroup className="max-w-sm" value={voteValue} onValueChange={setVoteValue}>
-                                {players
-                                    ?.filter((player) => player.side !== "bad")
-                                    .map((player) => {
-                                        return (
-                                            <FieldLabel htmlFor={player.id} key={player.id}>
-                                                <Field orientation="horizontal">
-                                                    <FieldContent>
-                                                        <FieldTitle>
-                                                            {player.name}
-                                                            {player.status === "dead" && <span>DEAD</span>}
-                                                        </FieldTitle>
-                                                    </FieldContent>
-                                                    <RadioGroupItem value={player.id} id={player.id} disabled={player.status === "dead"} />
-                                                </Field>
-                                            </FieldLabel>
-                                        )
-                                    })}
-                            </RadioGroup>
-                            <Button onClick={() => setVoteValue("none")}>Not Voting</Button>
-                        </div>
-                    </CardContent>
-                </Card>
-            }
-            {(isCounting && isUserAlive && phase === "hangVoteCount") &&
-                <Card>
-                    <CardContent>
-                        HANG VOTE RESULT
-                        <div className="flex flex-wrap gap-4 md:gap-6 justify-center w-full flex-col">
-                            {Object.keys(voterByCandidate).length &&
-                                Object.entries(voterByCandidate).map(([voted, voters]) =>
-                                    <div className="flex justify-center items-center" key={voted}>{voted} Voted By :
-                                        {voters.map((voter, idx) => <div key={voter}>{voter}{idx < voters.length - 1 ? ',' : ''}</div>)}
-                                    </div>
-                                )
-                            }
-                        </div>
-                    </CardContent>
-                </Card>
-            }
-            {(isCounting && isUserAlive && phase === "killVoteCount") &&
-                <Card>
-                    <CardContent>
-                        {isUserBadSide ? "KILL VOTE RESULT" : "WAITING FOR MORNING"}
-                        <div className="flex flex-wrap gap-4 md:gap-6 justify-center w-full flex-col">
-                            {(!!Object.keys(voterByCandidate).length && isUserBadSide) &&
-                                Object.entries(voterByCandidate).map(([voted, voters]) =>
-                                    <div className="flex justify-center items-center" key={voted}>{voted} Voted By :
-                                        {voters.map((voter, idx) => <div key={voter}>{voter}{idx < voters.length - 1 ? ',' : ''}</div>)}
-                                    </div>
-                                )
-                            }
-                        </div>
-                    </CardContent>
-                </Card>
-            }
-            {(isResulting && isUserAlive) &&
-                <Card>
-                    <CardContent>
-                        {(lastDeadPlayer)
-                            ?
-                            <span>
-                                {lastDeadPlayer.name} the {lastDeadPlayer.role} the is dead
-                            </span>
-                            :
-                            <span>
-                                no one is dead
-                            </span>
-                        }
-                    </CardContent>
-                </Card>
-            }
-            <Card>
-                <CardContent>
-                    <p>You are: {user && user.name}</p>
-                    <p>Your Role is: {role}</p>
-                    <p>Current Phase is: {phase}</p>
-                    <p>Current Round is: {round}</p>
-                    <p>This is the game room</p>
-                </CardContent>
-            </Card>
         </>
     );
 }
