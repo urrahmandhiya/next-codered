@@ -51,10 +51,12 @@ export async function goToWaitingRoom() {
 
     const p = redis.pipeline();
     p.sadd(`room:${roomCode}:activePlayersIds`, hostId, ...playerIds);
+    p.sadd(`room:${roomCode}:deadPlayersIds`, '__EMPTY__');
     p.hset(`room:${roomCode}`, { ...initialRoomState, ...playersState, ...rolesState});
 
     // keys are set to expire in one hour
     p.expire(`room:${roomCode}`, 3600)
+    p.expire(`room:${roomCode}:activePlayersIds`, 3600)
     p.expire(`room:${roomCode}:activePlayersIds`, 3600)
 
     try {
