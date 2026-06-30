@@ -37,7 +37,7 @@ export async function getGameState(roomCode: string): Promise<{ gameState: GameS
     return {isResolver, cjson.encode(data)}
     `;
 
-    const [isResolver, data] = await redis.eval(gatekeepScript, [key], [currentTime]) as [boolean, Omit<GameRoomMetaData, "lastDeadPlayerId">];
+    const [isResolver, data] = await redis.eval(gatekeepScript, [key], [currentTime]) as [boolean, Omit<GameRoomMetaData, 'lastDeadPlayerId' | 'voterByCandidate'>];
     let updatedState = {};
 
     // still prone to deadlock (resolver failed to update and writeback) // implement resolver duration (timelimit) to prevent deadlock later
@@ -88,6 +88,8 @@ export async function getGameState(roomCode: string): Promise<{ gameState: GameS
 
 
         let votedPlayerIds: string[] = [];
+        const voterByCandidate: Record<string, string[]> = {};
+
         if (isVoting) {
             const voteScript = `
             local activePlayersIdsKey = KEYS[1] .. ':activePlayersIds'
@@ -99,17 +101,27 @@ export async function getGameState(roomCode: string): Promise<{ gameState: GameS
             end
 
             local votedIds = redis.call('HMGET', KEYS[1], unpack(voteFields))
+            local voterData = {}
+
+            for i, field in ipairs(voteFields) do
+                voterData[field] = votedIds[i]
+            end 
+
+            -- clean the vote fields for next voting
             redis.call('HDEL', KEYS[1], unpack(voteFields))
-            return votedIds
+            return {cjson.encode(voterData), votedIds}
             `
 
-            let votedIds = await redis.eval(voteScript, [key], []) as string[];
-            votedIds = votedIds.filter((id) => id !== "null" && id !== null);
+            const [voterData, votedIds] = await redis.eval(voteScript, [key], []) as [Record<string, string>, string[]];
+            const cleanVotedIds = votedIds.filter((id) => id !== "null" && id !== null);
+            console.log("[VoterData]", voterData)
+            const cleanVoterData = Object.entries(voterData).filter(([key, val]) => key && val);
+            console.log("[cleanVoterData]", cleanVoterData)
 
             let maxCount = 0;
             const occ: Record<string, number> = {};
 
-            for (const id of votedIds) {
+            for (const id of cleanVotedIds) {
                 occ[id] = (occ[id] || 0) + 1;
             }
 
@@ -122,6 +134,14 @@ export async function getGameState(roomCode: string): Promise<{ gameState: GameS
                 }
             }
             console.log("[Voted Ids]", votedPlayerIds)
+
+            cleanVoterData.forEach(([key, val]) => {
+                if (voterByCandidate[val]) {
+                    voterByCandidate[val].push(key);
+                } else {
+                    voterByCandidate[val] = [key];
+                }
+            })
         }
 
         updatedState = {
@@ -129,6 +149,7 @@ export async function getGameState(roomCode: string): Promise<{ gameState: GameS
             phaseEndAt: Date.now() + (phaseEndAtDuration * 1000),
             round: isNextRound ? Number(data.round) + 1 : Number(data.round),
             votedPlayerId: (isVoting && votedPlayerIds.length === 1) ? votedPlayerIds[0] : "none",
+            voterByCandidate: JSON.stringify(voterByCandidate),
         };
     };
 
@@ -161,12 +182,14 @@ export async function getGameState(roomCode: string): Promise<{ gameState: GameS
         -- clean lastDeadPlayerId after count phases
         if updatedState.phase == 'day' or updatedState.phase == 'night' then
             redis.call('HSET', key, 'lastDeadPlayerId', "none")
+            redis.call('HSET', key, 'voterByCandidate', "{}")
         end
 
         redis.call('HSET', key,
             'phase', updatedState.phase,
             'phaseEndAt', updatedState.phaseEndAt,
-            'round', updatedState.round
+            'round', updatedState.round,
+            'voterByCandidate', updatedState.voterByCandidate
         )
     end
 
@@ -177,6 +200,7 @@ export async function getGameState(roomCode: string): Promise<{ gameState: GameS
         'phaseEndAt',
         'round',
         'lastDeadPlayerId',
+        'voterByCandidate',
     }
    
     -- assigning side to each player
@@ -198,7 +222,7 @@ export async function getGameState(roomCode: string): Promise<{ gameState: GameS
         sides[id] = sideValue[i]
     end
 
-    local deadPlayerIds = redis.call('SMEMBERS', deadPlayersIdsKey)
+    local deadPlayersIds = redis.call('SMEMBERS', deadPlayersIdsKey)
 
     local function includes(tbl, target)
         for _, val in ipairs(tbl) do
@@ -219,7 +243,7 @@ export async function getGameState(roomCode: string): Promise<{ gameState: GameS
             table.insert(gameStateFields, 'p:' .. playerIds[i] .. ':name')
             table.insert(gameStateFields, 'p:' .. playerIds[i] .. ':status')
 
-            if (playerSide == 'bad' and sides[playerIds[i]] == 'bad') or (includes(deadPlayerIds, playerIds[i])) then
+            if (playerSide == 'bad' and sides[playerIds[i]] == 'bad') or (includes(deadPlayersIds, playerIds[i])) then
                 table.insert(gameStateFields, 'p:' .. playerIds[i] .. ':side')
                 table.insert(gameStateFields, 'p:' .. playerIds[i] .. ':role')
             end
@@ -235,7 +259,7 @@ export async function getGameState(roomCode: string): Promise<{ gameState: GameS
 
     return {cjson.encode(gameData), playerIds}
     `
-    const [gameData, activePlayersIds] = await redis.eval(script, [key], [userId, updatedState]) as [RedisGameRoom, string[], string];
+    const [gameData, activePlayersIds] = await redis.eval(script, [key], [userId, updatedState]) as [RedisGameRoom, string[]];
 
     if (!gameData) {
         return { gameState: null, activePlayersIds };
@@ -243,6 +267,20 @@ export async function getGameState(roomCode: string): Promise<{ gameState: GameS
 
     const lastDeadPlayerId = gameData.lastDeadPlayerId;
     console.log("[lastDeadPlayerId]", lastDeadPlayerId)
+
+    const parsedVoterByCandidate = JSON.parse(gameData.voterByCandidate) as Record<string, string[]>;
+    const entriesVoterByCandidate = Object.entries(parsedVoterByCandidate);
+
+    const validVoterByCandidate: Record<string, string[]> = entriesVoterByCandidate.length
+        ? Object.fromEntries(
+            entriesVoterByCandidate.map(([voted, voters]) => [
+                voted === "none" ? "none" : gameData[`p:${voted}:name`],
+                voters.map((voter) => String(gameData[voter.replace(':vote', ':name')]))
+            ])
+        )
+        : {};
+
+    console.log("[voterByCandidate]", validVoterByCandidate)
 
     const gameState = {
         user: {
@@ -278,6 +316,7 @@ export async function getGameState(roomCode: string): Promise<{ gameState: GameS
         phaseEndAt: Number(gameData.phaseEndAt),
         round: gameData.round,
         lastDeadPlayerId: lastDeadPlayerId === "none" ? "none" : lastDeadPlayerId,
+        voterByCandidate: Object.keys(validVoterByCandidate).length ? validVoterByCandidate : {},
     }
 
     return { gameState, activePlayersIds };

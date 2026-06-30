@@ -36,6 +36,7 @@ export default function GameRoom({ roomCode }: { roomCode: string }) {
     const isCounting = phase?.endsWith("Count");
     const isResulting = phase?.endsWith("Result");
     const lastDeadPlayer: InGamePlayer = (players ?? [])?.filter((player) => player.id === data?.lastDeadPlayerId)[0];
+    const voterByCandidate: Record<string, string[]> = data?.voterByCandidate ?? {};
 
     useEffect(() => {
         if (!serverPhaseEndAt) return;
@@ -43,7 +44,7 @@ export default function GameRoom({ roomCode }: { roomCode: string }) {
 
         const handleMutate = async () => {
             try {
-                if (phase === "hangVote") {
+                if (phase === "hangVote" && isUserAlive) {
                     if (voteValue === "none") {
                         console.log("[Getting Vote] not voting")
                     } else {
@@ -51,7 +52,7 @@ export default function GameRoom({ roomCode }: { roomCode: string }) {
                     }
                     await getPlayerVote(roomCode, voteValue);
                 }
-                if (phase === "killVote" && user?.side === "bad") {
+                if (phase === "killVote" && user?.side === "bad" && isUserAlive) {
                     if (voteValue === "none") {
                         console.log("[Getting Vote] not voting")
                     } else {
@@ -162,6 +163,7 @@ export default function GameRoom({ roomCode }: { roomCode: string }) {
                                                     <FieldContent>
                                                         <FieldTitle>
                                                             {player.name}
+                                                            {player.status === "dead" && <span>DEAD</span>}
                                                         </FieldTitle>
                                                     </FieldContent>
                                                     <RadioGroupItem value={player.id} id={player.id} disabled={player.status === "dead"} />
@@ -175,10 +177,35 @@ export default function GameRoom({ roomCode }: { roomCode: string }) {
                     </CardContent>
                 </Card>
             }
-            {(isCounting && isUserAlive) &&
+            {(isCounting && isUserAlive && phase === "hangVoteCount") &&
                 <Card>
                     <CardContent>
-                        {isUserBadSide ? "COUNTING VOTES...." : "WAITING FOR MORNING"}
+                        HANG VOTE RESULT
+                        <div className="flex flex-wrap gap-4 md:gap-6 justify-center w-full flex-col">
+                            {Object.keys(voterByCandidate).length &&
+                                Object.entries(voterByCandidate).map(([voted, voters]) =>
+                                    <div className="flex justify-center items-center" key={voted}>{voted} Voted By :
+                                        {voters.map((voter, idx) => <div key={voter}>{voter}{idx < voters.length - 1 ? ',' : ''}</div>)}
+                                    </div>
+                                )
+                            }
+                        </div>
+                    </CardContent>
+                </Card>
+            }
+            {(isCounting && isUserAlive && phase === "killVoteCount") &&
+                <Card>
+                    <CardContent>
+                        {isUserBadSide ? "KILL VOTE RESULT" : "WAITING FOR MORNING"}
+                        <div className="flex flex-wrap gap-4 md:gap-6 justify-center w-full flex-col">
+                            {(!!Object.keys(voterByCandidate).length && isUserBadSide) &&
+                                Object.entries(voterByCandidate).map(([voted, voters]) =>
+                                    <div className="flex justify-center items-center" key={voted}>{voted} Voted By :
+                                        {voters.map((voter, idx) => <div key={voter}>{voter}{idx < voters.length - 1 ? ',' : ''}</div>)}
+                                    </div>
+                                )
+                            }
+                        </div>
                     </CardContent>
                 </Card>
             }

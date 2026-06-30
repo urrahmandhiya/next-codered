@@ -40,11 +40,13 @@ export async function createRoom(prevState: ActionResponse, formData: FormData):
 
     const p = redis.pipeline();
     p.sadd(`room:${roomCode}:activePlayersIds`, hostId)
+    p.sadd(`room:${roomCode}:deadPlayersIds`, '__EMPTY__')
     p.hset(`room:${roomCode}`, initialRoomState);
 
     // keys are set to expire in one hour
     p.expire(`room:${roomCode}`, INITIAL_ROOM_DEFAULTS.KEY_TTL)
     p.expire(`room:${roomCode}:activePlayersIds`, INITIAL_ROOM_DEFAULTS.KEY_TTL)
+    p.expire(`room:${roomCode}:deadPlayersIds`, INITIAL_ROOM_DEFAULTS.KEY_TTL)
 
     try {
         console.time("redis pipeline exec");
