@@ -142,6 +142,7 @@ export default function GameRoom({ roomCode }: { roomCode: string }) {
                                                             })}>
                                                                 {player.name}
                                                                 {player.status === "dead" && <span>DEAD</span>}
+                                                                {player.role !== "unknown" && player.role}
                                                             </FieldTitle>
                                                         </FieldContent>
                                                         <RadioGroupItem value={player.id} id={player.id} disabled={player.status === "dead"} />
@@ -170,6 +171,7 @@ export default function GameRoom({ roomCode }: { roomCode: string }) {
                                                                 <FieldTitle>
                                                                     {player.name}
                                                                     {player.status === "dead" && <span>DEAD</span>}
+                                                                    {player.role !== "unknown" && player.role}
                                                                 </FieldTitle>
                                                             </FieldContent>
                                                             <RadioGroupItem value={player.id} id={player.id} disabled={player.status === "dead"} />

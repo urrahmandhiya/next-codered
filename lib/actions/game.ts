@@ -245,14 +245,10 @@ export async function getGameState(roomCode: string): Promise<{ gameState: GameS
     end
 
     local deadPlayersIds = redis.call('SMEMBERS', deadPlayersIdsKey)
+    local deadPlayersIdsSet = {}
 
-    local function includes(tbl, target)
-        for _, val in ipairs(tbl) do
-            if (val == target) then
-                return true
-            end
-        end
-        return false
+    for _, id in ipairs(deadPlayersIds) do
+        deadPlayersIdsSet[id] = true
     end
 
     for i = 1, #playerIds, 1 do
@@ -266,7 +262,7 @@ export async function getGameState(roomCode: string): Promise<{ gameState: GameS
             table.insert(gameStateFields, 'p:' .. playerIds[i] .. ':status')
 
             if (playerSide == 'bad' and sides[playerIds[i]] == 'bad') 
-                or (includes(deadPlayersIds, playerIds[i])) 
+                or (deadPlayersIdsSet[playerIds[i]]) 
                 or (endGame ~= 'inProgress') then
                 table.insert(gameStateFields, 'p:' .. playerIds[i] .. ':side')
                 table.insert(gameStateFields, 'p:' .. playerIds[i] .. ':role')
