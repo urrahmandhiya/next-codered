@@ -3,11 +3,9 @@ import useSWR from "swr";
 import { useEffect, useRef, useState } from "react";
 import { updateGameState } from "@/lib/data";
 import { Field, FieldContent, FieldLabel, FieldTitle } from "../ui/field";
-import { RadioGroup, RadioGroupItem } from "../ui/radio-group";
-import { Button } from "../ui/button";
-import clsx from "clsx";
 import { getPlayerVote } from "@/lib/actions/game";
 import { InGamePlayer } from "@/lib/definitions";
+import VotePlayerList from "../game/vote-player-list";
 
 const isDev = process.env.NEXT_PUBLIC_MODE === "DEV";
 
@@ -28,7 +26,7 @@ export default function GameRoom({ roomCode }: { roomCode: string }) {
     const serverPhaseEndAt = data?.phaseEndAt;
     const phase = data?.phase;
     const round = data?.round;
-    const players = data?.players;
+    const players = data?.players ?? [];
     const isHangVoting = phase === "hangVote";
     const isKillVoting = phase === "killVote";
     const isUserBadSide = user?.side === "bad";
@@ -128,62 +126,10 @@ export default function GameRoom({ roomCode }: { roomCode: string }) {
                         </Card>
                     }
                     {(isHangVoting && isUserAlive) &&
-                        <Card>
-                            <CardContent>
-                                <div className="flex flex-wrap gap-4 md:gap-6 justify-center w-full">
-                                    <RadioGroup className="max-w-sm" value={voteValue} onValueChange={setVoteValue}>
-                                        {players?.map((player) => {
-                                            return (
-                                                <FieldLabel htmlFor={player.id} key={player.id}>
-                                                    <Field orientation="horizontal">
-                                                        <FieldContent>
-                                                            <FieldTitle className={clsx({
-                                                                'text-red-500': player.side === 'bad',
-                                                            })}>
-                                                                {player.name}
-                                                                {player.status === "dead" && <span>DEAD</span>}
-                                                                {player.role !== "unknown" && player.role}
-                                                            </FieldTitle>
-                                                        </FieldContent>
-                                                        <RadioGroupItem value={player.id} id={player.id} disabled={player.status === "dead"} />
-                                                    </Field>
-                                                </FieldLabel>
-                                            )
-                                        })}
-                                    </RadioGroup>
-                                    <Button onClick={() => setVoteValue("none")}>Not Voting</Button>
-                                </div>
-                            </CardContent>
-                        </Card>
+                        <VotePlayerList voteType="hangVote" players={players} onVote={setVoteValue} voteValue={voteValue} />
                     }
                     {(isKillVoting && isUserBadSide && isUserAlive) &&
-                        <Card>
-                            <CardContent>
-                                <div className="flex flex-wrap gap-4 md:gap-6 justify-center w-full">
-                                    <RadioGroup className="max-w-sm" value={voteValue} onValueChange={setVoteValue}>
-                                        {players
-                                            ?.filter((player) => player.side !== "bad")
-                                            .map((player) => {
-                                                return (
-                                                    <FieldLabel htmlFor={player.id} key={player.id}>
-                                                        <Field orientation="horizontal">
-                                                            <FieldContent>
-                                                                <FieldTitle>
-                                                                    {player.name}
-                                                                    {player.status === "dead" && <span>DEAD</span>}
-                                                                    {player.role !== "unknown" && player.role}
-                                                                </FieldTitle>
-                                                            </FieldContent>
-                                                            <RadioGroupItem value={player.id} id={player.id} disabled={player.status === "dead"} />
-                                                        </Field>
-                                                    </FieldLabel>
-                                                )
-                                            })}
-                                    </RadioGroup>
-                                    <Button onClick={() => setVoteValue("none")}>Not Voting</Button>
-                                </div>
-                            </CardContent>
-                        </Card>
+                        <VotePlayerList voteType="killVote" players={players} onVote={setVoteValue} voteValue={voteValue} />
                     }
                     {(isCounting && isUserAlive && phase === "hangVoteCount") &&
                         <Card>
