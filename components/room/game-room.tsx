@@ -15,7 +15,7 @@ export default function GameRoom({ roomCode }: { roomCode: string }) {
     const isPollingRef = useRef(false);
 
     const { data, mutate } = useSWR(`gameState-${roomCode}`, () => updateGameState(roomCode), {
-        refreshInterval: () => isPollingRef.current ? 2000 : 0,
+        refreshInterval: (currentData) => (isPollingRef.current && currentData?.endGame === "inProgress") ? 2000 : 0,
         revalidateOnFocus: false,
         revalidateOnReconnect: false,
         revalidateIfStale: false,
@@ -62,8 +62,8 @@ export default function GameRoom({ roomCode }: { roomCode: string }) {
                 const result = await mutate();
                 console.log("[Phase Transition] into", result?.phase);
 
-                isPollingRef.current = true;
-                console.log("[Force Polling]")
+                // isPollingRef.current = true;
+                // console.log("[Force Polling]")
             } catch (error) {
                 console.log(error instanceof Error ? error.message : error)
                 isPollingRef.current = true;
@@ -78,6 +78,8 @@ export default function GameRoom({ roomCode }: { roomCode: string }) {
             if (remaining <= 0) {
                 setDuration(0)
                 if (!isDev) {
+                    isPollingRef.current = true;
+                    console.log("[Force Polling]")
                     if (isStillPlaying) {
                         handleMutate();
                     }
