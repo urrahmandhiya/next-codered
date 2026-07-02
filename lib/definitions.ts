@@ -56,6 +56,7 @@ export type GameRoomMetaData = {
     goodSide: number;
     badSide: number;
     endGame: string;
+    resolvingEndAt: number;
 }
 
 export interface GameState {

@@ -143,6 +143,7 @@ export async function startGame(roomCode: string): Promise<ActionResponse> {
             // starting phase just to wait/ensure every players polls to the game room
             phase: "starting",
             phaseEndAt: Date.now() + (15 * 1000),
+            resolvingEndAt: 0,
         };
 
         let playerIdx = 0;

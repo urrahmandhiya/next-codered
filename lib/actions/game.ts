@@ -21,6 +21,7 @@ export async function getGameState(roomCode: string): Promise<{ gameState: GameS
         'badSide',
         'goodSide',
         'endGame',
+        'resolvingEndAt',
     }
 
     local value = redis.call('HMGET', KEYS[1], unpack(gameStateFields))
@@ -31,10 +32,15 @@ export async function getGameState(roomCode: string): Promise<{ gameState: GameS
     end
 
     local isResolver = false
+    local currentTime = tonumber(ARGV[1])
 
-    if tonumber(data.phaseEndAt) <= tonumber(ARGV[1]) and data.phase ~= 'resolving' then
-        redis.call('HSET', KEYS[1], 'phase', 'resolving')
+    if data.endGame == 'inProgress'
+        and tonumber(data.phaseEndAt) <= currentTime 
+        and tonumber(data.resolvingEndAt) <= currentTime then
+        local resolvingDuration = currentTime + 5000
+        redis.call('HSET', KEYS[1], 'resolvingEndAt', resolvingDuration)
         isResolver = true
+        data.resolvingEndAt = tonumber(resolvingDuration)
     end
 
     return {isResolver, cjson.encode(data)}
@@ -43,8 +49,6 @@ export async function getGameState(roomCode: string): Promise<{ gameState: GameS
     const [isResolver, data] = await redis.eval(gatekeepScript, [key], [currentTime]) as [boolean, Omit<GameRoomMetaData, 'lastDeadPlayerId' | 'voterByCandidate'>];
     let updatedState = {};
 
-    // still prone to deadlock (resolver failed to update and writeback) 
-    // implement resolver duration (timelimit) to prevent deadlock later
     if (isResolver && data.endGame === "inProgress") {
         console.log("CALCULATING SOMETHING")
         const ROUND_0_PHASE = {
@@ -169,6 +173,7 @@ export async function getGameState(roomCode: string): Promise<{ gameState: GameS
             votedPlayerId: (isVoting && votedPlayerIds.length === 1) ? votedPlayerIds[0] : "none",
             voterByCandidate: JSON.stringify(voterByCandidate),
             endGame: endGame,
+            resolvingToken: data.resolvingEndAt,
         };
     };
 
@@ -179,10 +184,15 @@ export async function getGameState(roomCode: string): Promise<{ gameState: GameS
     local deadPlayersIdsKey = key .. ':deadPlayersIds'
     local updatedState = cjson.decode(ARGV[2])
 
+    -- if resolver is too long and someone has took over, abort the writeback
+    if next(updatedState) ~= nil
+        and tostring(updatedState.resolvingToken) ~= redis.call('HGET', key, 'resolvingEndAt') then
+        updatedState = {}
+    end 
+
     -- check if its a phase transitioning poll
     if next(updatedState) ~= nil then
         local roundCount = redis.call('HGET', key, 'round')
-        local currentPhase = redis.call('HGET', key, 'phase')
 
         -- if vote result is not tied or none
         if updatedState.votedPlayerId ~= "none" then
