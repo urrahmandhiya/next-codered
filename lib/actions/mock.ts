@@ -57,7 +57,7 @@ export async function goToWaitingRoom() {
     // keys are set to expire in one hour
     p.expire(`room:${roomCode}`, 3600)
     p.expire(`room:${roomCode}:activePlayersIds`, 3600)
-    p.expire(`room:${roomCode}:activePlayersIds`, 3600)
+    p.expire(`room:${roomCode}:deadPlayersIds`, 3600)
 
     try {
         await p.exec();
