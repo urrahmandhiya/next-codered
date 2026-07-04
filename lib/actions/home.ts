@@ -16,10 +16,20 @@ const INITIAL_ROOM_DEFAULTS = {
     KEY_TTL: 3600,
 }
 
+async function generateUniqueRoomCode(): Promise<string> {
+    const MAX_ATTEMPTS = 3;
+    for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
+        const candidate = Math.random().toString(36).substring(2, 6).toUpperCase();
+        const roomAlreadyExists = await redis.exists(`room:${candidate}`);
+        if (!roomAlreadyExists) return candidate;
+    }
+    throw new Error("Failed to generate a unique room code. Please try again.");
+}
+
 export async function createRoom(prevState: ActionResponse, formData: FormData): Promise<ActionResponse> {
     console.log("[createRoom] Action started");
     console.time("createRoom total");
-    
+
     const username = formData.get("username");
     if (!username || typeof username !== "string" || username.trim() === "") {
         console.timeEnd("createRoom total");
@@ -27,7 +37,7 @@ export async function createRoom(prevState: ActionResponse, formData: FormData):
     }
 
     const hostId = crypto.randomUUID();
-    const roomCode = Math.random().toString(36).substring(2, 6).toUpperCase();
+    const roomCode = await generateUniqueRoomCode();
     const playerState = {
         name: username.trim(),
         createdAt: Date.now(),
@@ -125,6 +135,14 @@ export async function joinRoom(prevState: ActionResponse, formData: FormData): P
 
         if (playersInRoom >= maxPlayersInRoom) {
             throw new Error(`Room ${roomCode} is full.`);
+        }
+
+        const takenUsernames = Object.entries(roomData)
+            .filter(([field]) => field.endsWith(":name"))
+            .map(([, value]) => String(value).toLowerCase());
+
+        if (takenUsernames.includes(username.toLowerCase())) {
+            throw new Error(`The username "${username}" is already taken in this room.`);
         }
 
         const newPlayersInRoom = playersInRoom + 1;

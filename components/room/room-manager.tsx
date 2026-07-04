@@ -20,7 +20,9 @@ export default function RoomManager() {
     const { data, error } = useSWR(roomCode, updateRoomState, {
         refreshInterval: (currentData) => {
             if (isDev) return 0;
-            if (currentData?.roomStatus === "playing") return 0;
+            const isGameRunning = currentData?.roomStatus === "playing";
+            const isStartingPhaseOver = currentData?.phase !== "starting";
+            if (isGameRunning && isStartingPhaseOver) return 0;
             return 5000;
         },
         revalidateOnFocus: false,
