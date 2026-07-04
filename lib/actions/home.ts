@@ -36,10 +36,16 @@ export async function createRoom(prevState: ActionResponse, formData: FormData):
         return { success: false, error: "Username is required." };
     }
 
+    const trimmedUsername = username.trim();
+    if (trimmedUsername.length < 2) {
+        console.timeEnd("createRoom total");
+        return { success: false, error: "Username must be at least 2 characters long." };
+    }
+
     const hostId = crypto.randomUUID();
     const roomCode = await generateUniqueRoomCode();
     const playerState = {
-        name: username.trim(),
+        name: trimmedUsername,
         createdAt: Date.now(),
     };
 
@@ -104,8 +110,13 @@ export async function joinRoom(prevState: ActionResponse, formData: FormData): P
         return { success: false, error: "Username is required." };
     }
 
-    const roomCode = rawRoomCode.trim().toUpperCase();
     const username = rawUsername.trim();
+    if (username.length < 2) {
+        console.timeEnd("joinRoom total");
+        return { success: false, error: "Username must be at least 2 characters long." };
+    }
+
+    const roomCode = rawRoomCode.trim().toUpperCase();
 
     const userId = crypto.randomUUID();
     const unixTimeStamp = Date.now();
