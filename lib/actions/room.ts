@@ -16,72 +16,79 @@ const ROLES_SIDES: DynamicFields = {
 const rolesFallback = CURRENT_ROLES.map((role) => ({ name: role, amount: 1 }));
 
 export async function getRoomState(roomCode: string): Promise<{ room: Room | null; userId: string | undefined }> {
-    const userId = (await cookies()).get("user_id")?.value;
+    const upperCode = roomCode.toUpperCase();
+    try {
+        const userId = (await cookies()).get("user_id")?.value;
 
-    const p = redis.pipeline();
+        const p = redis.pipeline();
 
-    p.hgetall(`room:${roomCode}`);
-    p.smembers(`room:${roomCode}:activePlayersIds`);
+        p.hgetall(`room:${upperCode}`);
+        p.smembers(`room:${upperCode}:activePlayersIds`);
 
-    const [roomData, activePlayersIds] = await p.exec<[RedisRoom, string[]]>();
+        const [roomData, activePlayersIds] = await p.exec<[RedisRoom, string[]]>();
 
-    if (!roomData) {
-        return { room: null, userId };
-    }
-
-    let roles: Role[] = [];
-
-    if (Object.hasOwn(roomData, "r:werewolf")) {
-        for (const role of CURRENT_ROLES) {
-            roles.push({ name: role, amount: Number(roomData[`r:${role}`]) });
+        if (!roomData) {
+            return { room: null, userId };
         }
-    } else {
-        roles = rolesFallback;
-    }
 
-    const room = {
-        roomStatus: roomData.roomStatus,
-        roomHostId: roomData.roomHostId,
-        players: activePlayersIds
-            .map((id) => {
-                const name = String(roomData[`p:${id}:name`]);
-                const createdAt = Number(roomData[`p:${id}:createdAt`]);
-                const lastSeen = Number(roomData[`p:${id}:lastSeen`] || createdAt);
-                const role = String(roomData[`p:${id}:role`] ?? "none");
-                return {
-                    name,
-                    createdAt,
-                    lastSeen,
-                    role,
-                    id: String(id),
-                    isHost: String(id) === roomData.roomHostId,
-                };
-            }),
-        maxPlayersInRoom: roomData.maxPlayersInRoom,
-        playersInRoom: roomData.playersInRoom,
-        roles: roles,
-        discussDuration: roomData.discussDuration,
-        voteDuration: roomData.voteDuration,
-    };
+        let roles: Role[] = [];
 
-    if (userId && activePlayersIds.includes(userId)) {
-        await redis.hset(`room:${roomCode}`, { [`p:${userId}:lastSeen`]: Date.now() });
-    }
+        if (Object.hasOwn(roomData, "r:werewolf")) {
+            for (const role of CURRENT_ROLES) {
+                roles.push({ name: role, amount: Number(roomData[`r:${role}`]) });
+            }
+        } else {
+            roles = rolesFallback;
+        }
 
-    if (room.roomStatus === "waiting") {
-        const now = Date.now();
-        for (const player of room.players) {
-            if (player.id !== userId && now - player.lastSeen > (180 * 1000)) {
-                await deletePlayer(roomCode, player.id);
+        const room = {
+            roomStatus: roomData.roomStatus,
+            roomHostId: roomData.roomHostId,
+            players: activePlayersIds
+                .map((id) => {
+                    const name = String(roomData[`p:${id}:name`]);
+                    const createdAt = Number(roomData[`p:${id}:createdAt`]);
+                    const lastSeen = Number(roomData[`p:${id}:lastSeen`] || createdAt);
+                    const role = String(roomData[`p:${id}:role`] ?? "none");
+                    return {
+                        name,
+                        createdAt,
+                        lastSeen,
+                        role,
+                        id: String(id),
+                        isHost: String(id) === roomData.roomHostId,
+                    };
+                }),
+            maxPlayersInRoom: roomData.maxPlayersInRoom,
+            playersInRoom: roomData.playersInRoom,
+            roles: roles,
+            discussDuration: roomData.discussDuration,
+            voteDuration: roomData.voteDuration,
+        };
+
+        if (userId && activePlayersIds.includes(userId)) {
+            await redis.hset(`room:${upperCode}`, { [`p:${userId}:lastSeen`]: Date.now() });
+        }
+
+        if (room.roomStatus === "waiting") {
+            const now = Date.now();
+            for (const player of room.players) {
+                if (player.id !== userId && now - player.lastSeen > (180 * 1000)) {
+                    await deletePlayer(upperCode, player.id);
+                }
             }
         }
-    }
 
-    return { room, userId };
+        return { room, userId };
+    } catch (error) {
+        console.error(`[getRoomState] Error for room ${upperCode}:`, error);
+        throw error;
+    }
 }
 
 export async function startGame(roomCode: string): Promise<ActionResponse> {
-    const key = `room:${roomCode}`;
+    const upperCode = roomCode.toUpperCase();
+    const key = `room:${upperCode}`;
     const activePlayersIdsKey = `${key}:activePlayersIds`;
     const lock = new Lock({
         id: `lock:${key}`,
@@ -89,12 +96,13 @@ export async function startGame(roomCode: string): Promise<ActionResponse> {
         lease: 5000,
     });
 
-    const isLockAcquired = await lock.acquire();
-    if (!isLockAcquired) {
-        return { success: false, error: "Unable to start game due to high traffic. Try again." };
-    }
-
+    let isLockAcquired = false;
     try {
+        isLockAcquired = await lock.acquire();
+        if (!isLockAcquired) {
+            return { success: false, error: "Unable to start game due to high traffic. Try again." };
+        }
+
         const rolesFields = CURRENT_ROLES.map((role) => `r:${role}`);
         const roomData = await redis.hmget(key, "playersInRoom", "roomStatus", ...rolesFields) as Record<string, string> | null;
 
@@ -174,12 +182,15 @@ export async function startGame(roomCode: string): Promise<ActionResponse> {
         }
         return { success: false, error: String(error) };
     } finally {
-        await lock.release();
+        if (isLockAcquired) {
+            await lock.release();
+        }
     }
 }
 
 export async function updateRoomSettings(roomCode: string, prevState: ActionResponse, formData: FormData): Promise<ActionResponse> {
-    const key = `room:${roomCode}`;
+    const upperCode = roomCode.toUpperCase();
+    const key = `room:${upperCode}`;
     const playerCapacity = Number(formData.get("player-cap") || 0);
     const discussDuration = Number(formData.get("discuss-duration") || 0);
     const voteDuration = Number(formData.get("vote-duration") || 0);
@@ -190,12 +201,13 @@ export async function updateRoomSettings(roomCode: string, prevState: ActionResp
         lease: 5000,
     });
 
-    const isLockAcquired = await lock.acquire();
-    if (!isLockAcquired) {
-        return { success: false, error: "Unable to update room settings due to high traffic. Try again." };
-    }
-
+    let isLockAcquired = false;
     try {
+        isLockAcquired = await lock.acquire();
+        if (!isLockAcquired) {
+            return { success: false, error: "Unable to update room settings due to high traffic. Try again." };
+        }
+
         const roomData = await redis.hmget(key, "playersInRoom", "roomStatus") as Record<string, string> | null;
         if (!roomData) {
             throw new Error("Room not found");
@@ -224,7 +236,7 @@ export async function updateRoomSettings(roomCode: string, prevState: ActionResp
         }
 
         await redis.hset(key, updates);
-        revalidatePath(`/room/${roomCode}`);
+        revalidatePath(`/room/${upperCode}`);
         return { success: true, message: "Room settings changed" };
     } catch (error) {
         if (error instanceof Error) {
@@ -232,12 +244,15 @@ export async function updateRoomSettings(roomCode: string, prevState: ActionResp
         }
         return { success: false, error: String(error) };
     } finally {
-        await lock.release();
+        if (isLockAcquired) {
+            await lock.release();
+        }
     }
 }
 
 export async function deletePlayer(roomCode: string, id: string): Promise<ActionResponse> {
-    const key = `room:${roomCode}`;
+    const upperCode = roomCode.toUpperCase();
+    const key = `room:${upperCode}`;
     const activePlayersIdsKey = `${key}:activePlayersIds`;
 
     const lock = new Lock({
@@ -246,12 +261,13 @@ export async function deletePlayer(roomCode: string, id: string): Promise<Action
         lease: 5000,
     });
 
-    const isLockAcquired = await lock.acquire();
-    if (!isLockAcquired) {
-        return { success: false, error: "Unable to delete player due to high traffic. Try again." };
-    }
-
+    let isLockAcquired = false;
     try {
+        isLockAcquired = await lock.acquire();
+        if (!isLockAcquired) {
+            return { success: false, error: "Unable to delete player due to high traffic. Try again." };
+        }
+
         const roomData = await redis.hmget(key, "playersInRoom", "roomStatus", "roomHostId", `p:${id}:name`);
         if (!roomData) {
             throw new Error("Room not found");
@@ -278,7 +294,7 @@ export async function deletePlayer(roomCode: string, id: string): Promise<Action
                 pipeline.del(activePlayersIdsKey);
                 await pipeline.exec();
 
-                revalidatePath(`/room/${roomCode}`);
+                revalidatePath(`/room/${upperCode}`);
                 return { success: true, message: `Room deleted as the last player left` };
             }
 
@@ -311,7 +327,7 @@ export async function deletePlayer(roomCode: string, id: string): Promise<Action
 
             await pipeline.exec();
 
-            revalidatePath(`/room/${roomCode}`);
+            revalidatePath(`/room/${upperCode}`);
             return { success: true, message: `Player ${deletedPlayerName} deleted successfully` };
         } else {
             throw new Error("Failed to delete a player");
@@ -322,14 +338,17 @@ export async function deletePlayer(roomCode: string, id: string): Promise<Action
         }
         return { success: false, error: String(error) };
     } finally {
-        await lock.release();
+        if (isLockAcquired) {
+            await lock.release();
+        }
     }
 }
 
 export async function updatePlayerName(roomCode: string, prevState: ActionResponse, formData: FormData): Promise<ActionResponse> {
+    const upperCode = roomCode.toUpperCase();
     const userId = (await cookies()).get("user_id")?.value;
     const username = formData.get("username");
-    const key = `room:${roomCode}`;
+    const key = `room:${upperCode}`;
     try {
         await redis.hset(key, { [`p:${userId}:name`]: username });
         return { success: true, message: "Name changed successfully" }

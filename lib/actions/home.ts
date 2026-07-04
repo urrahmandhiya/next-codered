@@ -19,11 +19,17 @@ const INITIAL_ROOM_DEFAULTS = {
 export async function createRoom(prevState: ActionResponse, formData: FormData): Promise<ActionResponse> {
     console.log("[createRoom] Action started");
     console.time("createRoom total");
+    
+    const username = formData.get("username");
+    if (!username || typeof username !== "string" || username.trim() === "") {
+        console.timeEnd("createRoom total");
+        return { success: false, error: "Username is required." };
+    }
+
     const hostId = crypto.randomUUID();
-    // generate random 4-characterstring (e.g., ABCD) - still prone to collision
     const roomCode = Math.random().toString(36).substring(2, 6).toUpperCase();
     const playerState = {
-        name: formData.get("username"),
+        name: username.trim(),
         createdAt: Date.now(),
     };
 
@@ -38,23 +44,23 @@ export async function createRoom(prevState: ActionResponse, formData: FormData):
         voteDuration: INITIAL_ROOM_DEFAULTS.VOTE_DURATION,
     };
 
-    const p = redis.pipeline();
-    p.sadd(`room:${roomCode}:activePlayersIds`, hostId)
-    p.sadd(`room:${roomCode}:deadPlayersIds`, '__EMPTY__')
-    p.hset(`room:${roomCode}`, initialRoomState);
-
-    // keys are set to expire in one hour
-    p.expire(`room:${roomCode}`, INITIAL_ROOM_DEFAULTS.KEY_TTL)
-    p.expire(`room:${roomCode}:activePlayersIds`, INITIAL_ROOM_DEFAULTS.KEY_TTL)
-    p.expire(`room:${roomCode}:deadPlayersIds`, INITIAL_ROOM_DEFAULTS.KEY_TTL)
-
     try {
+        const p = redis.pipeline();
+        p.sadd(`room:${roomCode}:activePlayersIds`, hostId);
+        p.sadd(`room:${roomCode}:deadPlayersIds`, '__EMPTY__');
+        p.hset(`room:${roomCode}`, initialRoomState);
+
+        // keys are set to expire in one hour
+        p.expire(`room:${roomCode}`, INITIAL_ROOM_DEFAULTS.KEY_TTL);
+        p.expire(`room:${roomCode}:activePlayersIds`, INITIAL_ROOM_DEFAULTS.KEY_TTL);
+        p.expire(`room:${roomCode}:deadPlayersIds`, INITIAL_ROOM_DEFAULTS.KEY_TTL);
+
         console.time("redis pipeline exec");
         await p.exec();
         console.timeEnd("redis pipeline exec");
 
         (await cookies()).set("user_id", hostId, {
-            httpOnly: true,
+            httpOnly: false,
             path: "/",
             sameSite: "lax",
         });
@@ -75,9 +81,23 @@ export async function createRoom(prevState: ActionResponse, formData: FormData):
 export async function joinRoom(prevState: ActionResponse, formData: FormData): Promise<ActionResponse> {
     console.log("[joinRoom] Action started");
     console.time("joinRoom total");
+
+    const rawRoomCode = formData.get("room");
+    const rawUsername = formData.get("username");
+
+    if (!rawRoomCode || typeof rawRoomCode !== "string" || rawRoomCode.trim() === "") {
+        console.timeEnd("joinRoom total");
+        return { success: false, error: "Room code is required." };
+    }
+    if (!rawUsername || typeof rawUsername !== "string" || rawUsername.trim() === "") {
+        console.timeEnd("joinRoom total");
+        return { success: false, error: "Username is required." };
+    }
+
+    const roomCode = rawRoomCode.trim().toUpperCase();
+    const username = rawUsername.trim();
+
     const userId = crypto.randomUUID();
-    const roomCode = formData.get("room");
-    const username = formData.get("username");
     const unixTimeStamp = Date.now();
     const key = `room:${roomCode}`;
 
@@ -87,12 +107,14 @@ export async function joinRoom(prevState: ActionResponse, formData: FormData): P
         lease: 5000,
     });
 
-    const isLockAcquired = await lock.acquire();
-    if (!isLockAcquired) {
-        return { success: false, error: "Unable to join room. Please try again." };
-    }
-
+    let isLockAcquired = false;
     try {
+        isLockAcquired = await lock.acquire();
+        if (!isLockAcquired) {
+            console.timeEnd("joinRoom total");
+            return { success: false, error: "Unable to join room due to lock conflict. Please try again." };
+        }
+
         const roomData = await redis.hgetall(key);
         if (!roomData || !Object.hasOwn(roomData, "playersInRoom")) {
             throw new Error(`Room ${roomCode} is not found.`);
@@ -118,7 +140,7 @@ export async function joinRoom(prevState: ActionResponse, formData: FormData): P
         await pipeline.exec();
 
         (await cookies()).set("user_id", userId, {
-            httpOnly: true,
+            httpOnly: false,
             path: "/",
             sameSite: "lax",
         });
@@ -131,7 +153,9 @@ export async function joinRoom(prevState: ActionResponse, formData: FormData): P
         console.error("[joinRoom] Unknown Error:", error);
         return { success: false, error: String(error) };
     } finally {
-        await lock.release();
+        if (isLockAcquired) {
+            await lock.release();
+        }
     }
 
     console.timeEnd("joinRoom total");

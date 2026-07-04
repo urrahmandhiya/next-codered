@@ -7,9 +7,11 @@ import { ActionResponse, DynamicFields, GameRoomMetaData, GameState, RedisGameRo
 const redis = Redis.fromEnv();
 
 export async function getGameState(roomCode: string): Promise<{ gameState: GameState | null; activePlayersIds: string[] }> {
-    const userId = (await cookies()).get("user_id")?.value;
-    const key = `room:${roomCode}`;
-    const currentTime = Date.now();
+    const upperCode = roomCode.toUpperCase();
+    try {
+        const userId = (await cookies()).get("user_id")?.value;
+        const key = `room:${upperCode}`;
+        const currentTime = Date.now();
 
     const gatekeepScript = `
     local gameStateFields = {
@@ -350,12 +352,17 @@ export async function getGameState(roomCode: string): Promise<{ gameState: GameS
         endGame: gameData.endGame,
     }
 
-    return { gameState, activePlayersIds };
+        return { gameState, activePlayersIds };
+    } catch (error) {
+        console.error(`[getGameState] Error for room ${upperCode}:`, error);
+        throw error;
+    }
 }
 
 export async function getPlayerVote(roomCode: string, voteId: string): Promise<ActionResponse> {
+    const upperCode = roomCode.toUpperCase();
     const userId = (await cookies()).get("user_id")?.value;
-    const key = `room:${roomCode}`;
+    const key = `room:${upperCode}`;
     console.log("[Vote Id Sent]", voteId)
 
     try {
