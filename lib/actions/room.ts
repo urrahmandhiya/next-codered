@@ -71,7 +71,7 @@ export async function getRoomState(roomCode: string): Promise<{ room: Room | nul
             await redis.hset(`room:${upperCode}`, { [`p:${userId}:lastSeen`]: Date.now() });
         }
 
-        if (room.roomStatus === "waiting") {
+        if (room.roomStatus === "waiting" && Math.random() < 0.1) {
             const now = Date.now();
             for (const player of room.players) {
                 if (player.id !== userId && now - player.lastSeen > (180 * 1000)) {
