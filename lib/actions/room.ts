@@ -31,6 +31,12 @@ export async function getRoomState(roomCode: string): Promise<{ room: Room | nul
             return { room: null, userId };
         }
 
+        const actualPlayersCount = activePlayersIds ? activePlayersIds.length : 0;
+        if (Number(roomData.playersInRoom || 0) !== actualPlayersCount) {
+            await redis.hset(`room:${upperCode}`, { playersInRoom: actualPlayersCount });
+            roomData.playersInRoom = actualPlayersCount;
+        }
+
         let roles: Role[] = [];
 
         if (Object.hasOwn(roomData, "r:werewolf")) {
