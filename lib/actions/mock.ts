@@ -1,3 +1,5 @@
+// FOR DEVELOPMENT ONLY
+
 "use server"
 
 import { Redis } from "@upstash/redis";
@@ -33,6 +35,8 @@ export async function goToWaitingRoom() {
         [`p:${hostId}:createdAt`]: hostState.createdAt,
         maxPlayersInRoom: 4,
         playersInRoom: 4,
+        discussDuration: 15,
+        voteDuration: 15,
     };
 
     const rolesState: { [key: string]: string | number } = {}
@@ -47,11 +51,13 @@ export async function goToWaitingRoom() {
 
     const p = redis.pipeline();
     p.sadd(`room:${roomCode}:activePlayersIds`, hostId, ...playerIds);
+    p.sadd(`room:${roomCode}:deadPlayersIds`, '__EMPTY__');
     p.hset(`room:${roomCode}`, { ...initialRoomState, ...playersState, ...rolesState});
 
     // keys are set to expire in one hour
     p.expire(`room:${roomCode}`, 3600)
     p.expire(`room:${roomCode}:activePlayersIds`, 3600)
+    p.expire(`room:${roomCode}:deadPlayersIds`, 3600)
 
     try {
         await p.exec();

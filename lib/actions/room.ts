@@ -3,12 +3,16 @@
 import { Redis } from "@upstash/redis";
 import { Lock } from "@upstash/lock";
 import { cookies } from "next/headers";
-import { ActionResponse, RedisRoom, Role, Room } from "../definitions";
+import { ActionResponse, DynamicFields, RedisRoom, Role, Room } from "../definitions";
 import { revalidatePath } from "next/cache";
 
 const redis = Redis.fromEnv();
 const MINIMAL_CURRENTPLAYERS = 4;
 const CURRENT_ROLES = ["werewolf", "villager"];
+const ROLES_SIDES: DynamicFields = {
+    werewolf: "bad",
+    villager: "good",
+}
 const rolesFallback = CURRENT_ROLES.map((role) => ({ name: role, amount: 1 }));
 
 export async function getRoomState(roomCode: string): Promise<{ room: Room | null; userId: string | undefined }> {
@@ -56,6 +60,8 @@ export async function getRoomState(roomCode: string): Promise<{ room: Room | nul
         maxPlayersInRoom: roomData.maxPlayersInRoom,
         playersInRoom: roomData.playersInRoom,
         roles: roles,
+        discussDuration: roomData.discussDuration,
+        voteDuration: roomData.voteDuration,
     };
 
     if (userId && activePlayersIds.includes(userId)) {
@@ -65,7 +71,7 @@ export async function getRoomState(roomCode: string): Promise<{ room: Room | nul
     if (room.roomStatus === "waiting") {
         const now = Date.now();
         for (const player of room.players) {
-            if (player.id !== userId && now - player.lastSeen > (120 * 1000)) {
+            if (player.id !== userId && now - player.lastSeen > (180 * 1000)) {
                 await deletePlayer(roomCode, player.id);
             }
         }
@@ -77,7 +83,6 @@ export async function getRoomState(roomCode: string): Promise<{ room: Room | nul
 export async function startGame(roomCode: string): Promise<ActionResponse> {
     const key = `room:${roomCode}`;
     const activePlayersIdsKey = `${key}:activePlayersIds`;
-    const phaseDuration = 20 * 1000;
     const lock = new Lock({
         id: `lock:${key}`,
         redis,
@@ -92,7 +97,7 @@ export async function startGame(roomCode: string): Promise<ActionResponse> {
     try {
         const rolesFields = CURRENT_ROLES.map((role) => `r:${role}`);
         const roomData = await redis.hmget(key, "playersInRoom", "roomStatus", ...rolesFields) as Record<string, string> | null;
-        
+
         if (!roomData) {
             throw new Error("Room not found");
         }
@@ -129,8 +134,15 @@ export async function startGame(roomCode: string): Promise<ActionResponse> {
         const initialGameState: Record<string, string | number> = {
             roomStatus: "playing",
             round: 0,
+            lastDeadPlayerId: "none",
+            goodSide: 0,
+            badSide: 0,
+            endGame: "inProgress",
+
+            // starting phase just to wait/ensure every players polls to the game room
             phase: "starting",
-            phaseEndAt: Date.now() + phaseDuration,
+            phaseEndAt: Date.now() + (15 * 1000),
+            resolvingEndAt: 0,
         };
 
         let playerIdx = 0;
@@ -140,6 +152,15 @@ export async function startGame(roomCode: string): Promise<ActionResponse> {
                 if (playerIdx < shuffledPlayers.length) {
                     initialGameState[`p:${shuffledPlayers[playerIdx]}:role`] = role;
                     initialGameState[`p:${shuffledPlayers[playerIdx]}:status`] = "alive";
+                    initialGameState[`p:${shuffledPlayers[playerIdx]}:side`] = ROLES_SIDES[role];
+
+                    if (ROLES_SIDES[role] === "bad") {
+                        initialGameState.badSide = Number(initialGameState.badSide) + 1;
+                    }
+
+                    if (ROLES_SIDES[role] === "good") {
+                        initialGameState.goodSide = Number(initialGameState.goodSide) + 1;
+                    }
                     playerIdx++;
                 }
             }
@@ -160,6 +181,8 @@ export async function startGame(roomCode: string): Promise<ActionResponse> {
 export async function updateRoomSettings(roomCode: string, prevState: ActionResponse, formData: FormData): Promise<ActionResponse> {
     const key = `room:${roomCode}`;
     const playerCapacity = Number(formData.get("player-cap") || 0);
+    const discussDuration = Number(formData.get("discuss-duration") || 0);
+    const voteDuration = Number(formData.get("vote-duration") || 0);
 
     const lock = new Lock({
         id: `lock:${key}`,
@@ -191,6 +214,8 @@ export async function updateRoomSettings(roomCode: string, prevState: ActionResp
 
         const updates: Record<string, number> = {
             maxPlayersInRoom: playerCapacity,
+            discussDuration: discussDuration,
+            voteDuration: voteDuration,
         };
 
         for (const role of CURRENT_ROLES) {
@@ -242,17 +267,17 @@ export async function deletePlayer(roomCode: string, id: string): Promise<Action
         }
 
         const deletedFieldsCount = await redis.hdel(key, `p:${id}:name`, `p:${id}:createdAt`, `p:${id}:lastSeen`, `p:${id}:role`);
-        
+
         if (deletedFieldsCount >= 2) {
             const newCurrentPlayer = playersInRoom - 1;
             const pipeline = redis.pipeline();
-            
+
             if (newCurrentPlayer <= 0) {
                 // Room is empty, delete it entirely
                 pipeline.del(key);
                 pipeline.del(activePlayersIdsKey);
                 await pipeline.exec();
-                
+
                 revalidatePath(`/room/${roomCode}`);
                 return { success: true, message: `Room deleted as the last player left` };
             }
@@ -267,10 +292,10 @@ export async function deletePlayer(roomCode: string, id: string): Promise<Action
                 if (remainingIds.length > 0) {
                     const fieldsToGet = remainingIds.map(pId => `p:${pId}:createdAt`);
                     const createdTimes = await redis.hmget(key, ...fieldsToGet) as Record<string, string>;
-                    
+
                     let nextHostId = remainingIds[0];
                     let minCreatedAt = Infinity;
-                    
+
                     remainingIds.forEach((pId) => {
                         const fieldName = `p:${pId}:createdAt`;
                         const cTime = Number(createdTimes[fieldName] || Infinity);
@@ -279,13 +304,13 @@ export async function deletePlayer(roomCode: string, id: string): Promise<Action
                             nextHostId = pId;
                         }
                     });
-                    
+
                     pipeline.hset(key, { roomHostId: nextHostId });
                 }
             }
-            
+
             await pipeline.exec();
-            
+
             revalidatePath(`/room/${roomCode}`);
             return { success: true, message: `Player ${deletedPlayerName} deleted successfully` };
         } else {

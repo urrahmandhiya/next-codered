@@ -10,13 +10,11 @@ import { Spinner } from "../ui/spinner";
 import { Alert, AlertTitle } from "../ui/alert";
 import { AlertCircleIcon, Copy, Settings, Check, LogOut, X } from "lucide-react";
 import { Player } from "@/lib/definitions";
-import UpdateButton from "./update-button";
 import { updateRoomState } from "@/lib/data";
 import useSWR from "swr";
 import { useRouter } from "next/navigation";
 import { useUserCookies } from "./cookie-provider";
 import PlayerNameChange from "./player-name.change";
-import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { Separator } from "../ui/separator";
 
@@ -30,7 +28,7 @@ export default function WaitingRoom({ roomCode }: { roomCode: string }) {
     const [copied, setCopied] = useState(false);
     const router = useRouter();
 
-    const { data, isLoading, mutate } = useSWR(roomCode, updateRoomState, {
+    const { data, isLoading } = useSWR(roomCode, updateRoomState, {
         refreshInterval: isDev ? 0 : 5000,
         revalidateOnFocus: false,
         revalidateOnReconnect: false,
@@ -44,7 +42,8 @@ export default function WaitingRoom({ roomCode }: { roomCode: string }) {
     const players = (data?.players as Player[]) || [];
     const isHost = data?.roomHostId === userId;
     const roles = data?.roles || [];
-    const totalRoles = data?.roles.reduce((acc, curr) => acc += Number(curr.amount), 0) || 0;
+    const discussDuration = data?.discussDuration || 0;
+    const voteDuration = data?.voteDuration || 0;
 
     const handleStartGame = () => {
         startTransition(async () => {
@@ -107,7 +106,7 @@ export default function WaitingRoom({ roomCode }: { roomCode: string }) {
                 {/* Room Code Card */}
                 <button 
                     onClick={copyCode}
-                    className="group relative flex flex-col items-center justify-center gap-3 px-12 py-6 md:px-32 md:py-8 w-full md:w-auto md:min-w-[500px] rounded-[2.5rem] md:rounded-2xl bg-black border-2 border-cyan/40 border-glow-cyan hover:border-cyan/60 transition-all active:scale-[0.98]"
+                    className="group relative flex flex-col items-center justify-center gap-3 px-12 py-6 md:px-32 md:py-8 w-full md:w-auto md:min-w-125 rounded-[2.5rem] md:rounded-2xl bg-black border-2 border-cyan/40 border-glow-cyan hover:border-cyan/60 transition-all active:scale-[0.98]"
                 >
                     <div className="flex items-center gap-8">
                         <span className="text-4xl sm:text-5xl md:text-6xl font-mono font-bold text-white tracking-[0.2em] text-glow-cyan">
@@ -157,7 +156,7 @@ export default function WaitingRoom({ roomCode }: { roomCode: string }) {
                         size="icon"
                         onClick={handleLeaveRoom}
                         disabled={isPending || isStarting}
-                        className="size-16 md:size-20 rounded-full md:rounded-2xl border-2 border-zinc-800 bg-black text-red-500 hover:text-red-400 hover:border-red-500/50 hover:shadow-[0_0_15px_rgba(239,68,68,0.3)] transition-all flex-shrink-0"
+                        className="size-16 md:size-20 rounded-full md:rounded-2xl border-2 border-zinc-800 bg-black text-red-500 hover:text-red-400 hover:border-red-500/50 hover:shadow-[0_0_15px_rgba(239,68,68,0.3)] transition-all shrink-0"
                         title="Leave Room"
                     >
                         <LogOut className="size-6 md:size-7" />
@@ -175,7 +174,7 @@ export default function WaitingRoom({ roomCode }: { roomCode: string }) {
                         variant="outline"
                         size="icon"
                         onClick={() => setShowSettings(true)}
-                        className="size-16 md:size-20 rounded-full md:rounded-2xl border-2 border-zinc-800 bg-black text-zinc-400 hover:text-cyan hover:border-cyan/50 hover:border-glow-cyan transition-all flex-shrink-0"
+                        className="size-16 md:size-20 rounded-full md:rounded-2xl border-2 border-zinc-800 bg-black text-zinc-400 hover:text-cyan hover:border-cyan/50 hover:border-glow-cyan transition-all shrink-0"
                     >
                         <Settings className="size-7 md:size-8" />
                     </Button>
@@ -208,7 +207,8 @@ export default function WaitingRoom({ roomCode }: { roomCode: string }) {
                                     maxPlayersInRoom={maxPlayersInRoom} 
                                     roomCode={roomCode} 
                                     roles={roles} 
-                                    totalRoles={totalRoles} 
+                                    discussDuration={discussDuration}
+                                    voteDuration={voteDuration}
                                 />
                             </>
                         )}
@@ -217,4 +217,4 @@ export default function WaitingRoom({ roomCode }: { roomCode: string }) {
             )}
         </div>
     );
-}
+}

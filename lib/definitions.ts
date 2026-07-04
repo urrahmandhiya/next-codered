@@ -10,6 +10,8 @@ export interface Room {
     maxPlayersInRoom: number;
     playersInRoom: number;
     roles: Role[];
+    discussDuration: number;
+    voteDuration: number;
 }
 
 
@@ -28,9 +30,11 @@ type RoomMetaData = {
     maxPlayersInRoom: number;
     playersInRoom: number;
     activePlayersIds: string;
+    discussDuration: number;
+    voteDuration: number;
 };
 
-type DynamicFields = {
+export type DynamicFields = {
     [key: string]: string | number;
 };
 
@@ -45,6 +49,14 @@ export type GameRoomMetaData = {
     phase: string;
     phaseEndAt: number;
     round: number;
+    discussDuration: number;
+    voteDuration: number;
+    lastDeadPlayerId: string;
+    voterByCandidate: string;
+    goodSide: number;
+    badSide: number;
+    endGame: string;
+    resolvingEndAt: number;
 }
 
 export interface GameState {
@@ -53,6 +65,9 @@ export interface GameState {
     round: number;
     user: InGamePlayer;
     players: InGamePlayer[];
+    lastDeadPlayerId: string;
+    voterByCandidate: Record<string, string[]>;
+    endGame: string;
 }
 
 export interface InGamePlayer {
@@ -60,6 +75,9 @@ export interface InGamePlayer {
     name: string;
     status: string;
     role: string;
+    side: string;
 }
 
-export type RedisGameRoom = GameRoomMetaData & DynamicFields;
+type DynamicGameRoomMetaData = Omit<GameRoomMetaData, 'discussDuration' | 'voteDuration'>
+
+export type RedisGameRoom = DynamicGameRoomMetaData & DynamicFields;

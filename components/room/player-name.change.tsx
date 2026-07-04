@@ -1,6 +1,5 @@
 import { Player } from "@/lib/definitions";
 import { Button } from "../ui/button";
-import { Card, CardContent } from "../ui/card";
 import { Input } from "../ui/input";
 import { Label } from "../ui/label";
 import { useUserCookies } from "./cookie-provider";
@@ -18,22 +17,13 @@ export default function PlayerNameChange({ roomCode, players }: { roomCode: stri
     const [username, setUsername] = useState(player?.name || "");
 
     useEffect(() => {
-        if (player) {
-            setUsername(player.name);
+        if (state?.success) {
+            mutate(roomCode)
+            toast(state.message, { position: "top-center", duration: 3000 })
         }
-    }, [player]);
+    }, [state, roomCode])
 
     if (!player) return null;
-
-    useEffect(() => {
-        const handleToast = () => {
-            if (state?.success) {
-                mutate(roomCode)
-                toast(state.message, {position: "top-center", duration: 3000})
-            }
-        }
-        handleToast();
-    }, [state, roomCode])
 
     return (
         <form action={formAction} className="w-full">

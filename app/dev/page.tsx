@@ -5,7 +5,7 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { goToWaitingRoom } from "@/lib/actions/mock";
 
-export default function ContributorPage() {
+export default function Page() {
     return (
         <div className="flex flex-col min-h-screen bg-[#050B14] text-zinc-100 font-sans">
             {/* Header */}
