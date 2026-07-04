@@ -6,6 +6,7 @@ import { Field, FieldContent, FieldLabel, FieldTitle } from "../ui/field";
 import { getPlayerVote } from "@/lib/actions/game";
 import { InGamePlayer } from "@/lib/definitions";
 import VotePlayerList from "../game/vote-player-list";
+import NightPhase from "./night-phase/night-phase";
 
 const isDev = process.env.NEXT_PUBLIC_MODE === "DEV";
 
@@ -102,11 +103,31 @@ export default function GameRoom({ roomCode }: { roomCode: string }) {
     const minutes = String(Math.round(duration / 60)).padStart(2, "0");
     const seconds = String(duration % 60).padStart(2, "0");
 
+    const isNightPhase = phase === "night";
+
     return (
         <>
-            {(isStillPlaying)
-                ?
-                <>
+            {isStillPlaying ? (
+                isNightPhase && isUserAlive ? (
+                    !isUserBadSide ? (
+                        <NightPhase
+                            roomCode={roomCode}
+                            round={round ?? 0}
+                            timeLeft={duration}
+                            totalDuration={15}
+                        />
+                    ) : (
+                        <div className="w-full max-w-[390px] h-[780px] bg-[#020617] border border-[#FF2A55]/20 rounded-[32px] shadow-[0_0_80px_rgba(255,42,85,0.08)] flex flex-col items-center justify-center p-6 text-center">
+                            <h2 className="text-2xl font-bold text-[#FF2A55] tracking-widest uppercase mb-4 animate-pulse">
+                                ESTABLISHING UPLINK
+                            </h2>
+                            <p className="text-sm text-rose-300/70 font-mono">
+                                Maintaining radio silence. Waiting for coordinates of the decryption targets.
+                            </p>
+                        </div>
+                    )
+                ) : (
+                    <>
                     <Card>
                         <CardContent>
                             <div className="flex">
@@ -191,7 +212,8 @@ export default function GameRoom({ roomCode }: { roomCode: string }) {
                         </CardContent>
                     </Card>
                 </>
-                :
+                )
+            ) : (
                 <Card>
                     <CardContent>
                         <div className="flex flex-wrap gap-4 md:gap-6 justify-center w-full flex-col">
@@ -224,7 +246,7 @@ export default function GameRoom({ roomCode }: { roomCode: string }) {
                         </div>
                     </CardContent>
                 </Card>
-            }
+            )}
         </>
     );
 }
