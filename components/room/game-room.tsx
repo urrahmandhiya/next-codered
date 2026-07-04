@@ -198,10 +198,10 @@ export default function GameRoom({ roomCode }: { roomCode: string }) {
                         </Card>
                     }
                     {(isHangVoting && isUserAlive) &&
-                        <VotePlayerList voteType="hangVote" players={players} onVote={setVoteValue} voteValue={voteValue} />
+                        <VotePlayerList voteType="hangVote" players={players.filter((p) => p.status === "alive")} onVote={setVoteValue} voteValue={voteValue} />
                     }
                     {(isKillVoting && isUserBadSide && isUserAlive) &&
-                        <VotePlayerList voteType="killVote" players={players} onVote={setVoteValue} voteValue={voteValue} />
+                        <VotePlayerList voteType="killVote" players={players.filter((p) => p.status === "alive")} onVote={setVoteValue} voteValue={voteValue} />
                     }
                     {(isCounting && isUserAlive && phase === "hangVoteCount") &&
                         <Card>
