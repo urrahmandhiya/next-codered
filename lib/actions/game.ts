@@ -84,10 +84,10 @@ export async function getGameState(roomCode: string): Promise<{ gameState: GameS
                 phaseEndAtDuration = data.voteDuration;
                 break;
             case "Count":
-                phaseEndAtDuration = 5;
+                phaseEndAtDuration = 8;
                 break;
             case "Result":
-                phaseEndAtDuration = 5;
+                phaseEndAtDuration = 8;
                 break;
             default:
                 phaseEndAtDuration = data.discussDuration;
