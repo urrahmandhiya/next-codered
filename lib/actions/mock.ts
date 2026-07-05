@@ -63,7 +63,7 @@ export async function goToWaitingRoom() {
         await p.exec();
 
         (await cookies()).set("user_id", hostId, {
-            httpOnly: true,
+            httpOnly: false,
             path: "/",
             sameSite: "lax",
         });
