@@ -2,7 +2,9 @@
 
 import { Redis } from "@upstash/redis";
 import { cookies } from "next/headers";
-import { ActionResponse, DynamicFields, GameRoomMetaData, GameState, RedisGameRoom } from "../definitions";
+import { ActionResponse, GameState } from "../definitions";
+import { mapVoterByCandidatesToNames, phaseTransition, tallyingVotes, winningCondition } from "../pure/game";
+import { gameRoomPoll, gatekeepResolver, getVotingData, writebackResolver } from "../redis-lua/game";
 
 const redis = Redis.fromEnv();
 
@@ -10,347 +12,89 @@ export async function getGameState(roomCode: string): Promise<{ gameState: GameS
     const upperCode = roomCode.toUpperCase();
     try {
         const userId = (await cookies()).get("user_id")?.value;
+        if (!userId) throw new Error("can't get user_id from cookies");
+
         const key = `room:${upperCode}`;
         const currentTime = Date.now();
 
-    const gatekeepScript = `
-    local gameStateFields = {
-        'phase',
-        'discussDuration',
-        'voteDuration',
-        'round',
-        'phaseEndAt',
-        'badSide',
-        'goodSide',
-        'endGame',
-        'resolvingEndAt',
-    }
+        const [isResolver, data] = await gatekeepResolver(key, currentTime);
+        let updatedState = {};
 
-    local value = redis.call('HMGET', KEYS[1], unpack(gameStateFields))
-    local data = {}
+        if (isResolver && data.endGame === "inProgress") {
+            const { nextPhase, phaseEndAtDuration } = phaseTransition(data);
 
-    for i, field in ipairs(gameStateFields) do
-        data[field] = value[i]
-    end
+            const isNextRound = nextPhase === "day";
+            const isVoting = data.phase.endsWith("Vote");
 
-    local isResolver = false
-    local currentTime = tonumber(ARGV[1])
+            let votedPlayerIds: string[] = [];
+            let voterByCandidate: Record<string, string[]> = {};
 
-    if data.endGame == 'inProgress'
-        and tonumber(data.phaseEndAt) <= currentTime 
-        and tonumber(data.resolvingEndAt) <= currentTime then
-        local resolvingDuration = currentTime + 5000
-        redis.call('HSET', KEYS[1], 'resolvingEndAt', resolvingDuration)
-        isResolver = true
-        data.resolvingEndAt = tonumber(resolvingDuration)
-    end
-
-    return {isResolver, cjson.encode(data)}
-    `;
-
-    const [isResolver, data] = await redis.eval(gatekeepScript, [key], [currentTime]) as [boolean, Omit<GameRoomMetaData, 'lastDeadPlayerId' | 'voterByCandidate'>];
-    let updatedState = {};
-
-    if (isResolver && data.endGame === "inProgress") {
-        console.log("CALCULATING SOMETHING")
-        const ROUND_0_PHASE = {
-            starting: "night",
-            night: "day",
-            day: "hangVote",
-            hangVote: "hangVoteCount",
-            hangVoteCount: "hangVoteResult",
-            hangVoteResult: "night",
-        }
-        const ROUND_1_PHASE = {
-            night: "killVote",
-            killVote: "killVoteCount",
-            killVoteCount: "killVoteResult",
-            killVoteResult: "day",
-            day: "hangVote",
-            hangVote: "hangVoteCount",
-            hangVoteCount: "hangVoteResult",
-            hangVoteResult: "night",
-        }
-        const phaseState: DynamicFields = data.round > 0 ? ROUND_1_PHASE : ROUND_0_PHASE;
-        const nextPhase = String(phaseState[data.phase]);
-        const isNextRound = nextPhase === "day";
-
-        const nextPhaseWords = nextPhase.split(/(?=[A-Z])/);
-        const phaseType = nextPhaseWords[nextPhaseWords.length - 1];
-
-        const isVoting = data.phase.endsWith("Vote");
-        let phaseEndAtDuration: number;
-
-        switch (phaseType) {
-            case "Vote":
-                phaseEndAtDuration = data.voteDuration;
-                break;
-            case "Count":
-                phaseEndAtDuration = 8;
-                break;
-            case "Result":
-                phaseEndAtDuration = 8;
-                break;
-            default:
-                phaseEndAtDuration = data.discussDuration;
-                break;
-        }
-        console.log("[Current Phase] ", nextPhase);
-        console.log("[Duration] ", phaseEndAtDuration);
-
-        let votedPlayerIds: string[] = [];
-        const voterByCandidate: Record<string, string[]> = {};
-
-        if (isVoting) {
-            const voteScript = `
-            local activePlayersIdsKey = KEYS[1] .. ':activePlayersIds'
-            local playerIds = redis.call('SMEMBERS', activePlayersIdsKey)
-            local voteFields = {}
-
-            for i = 1, #playerIds, 1 do
-                table.insert(voteFields, 'p:' .. playerIds[i] .. ':vote')
-            end
-
-            local votedIds = redis.call('HMGET', KEYS[1], unpack(voteFields))
-            local voterData = {}
-
-            for i, field in ipairs(voteFields) do
-                voterData[field] = votedIds[i]
-            end 
-
-            -- clean the vote fields for next voting
-            redis.call('HDEL', KEYS[1], unpack(voteFields))
-            return {cjson.encode(voterData), votedIds}
-            `
-
-            const [voterData, votedIds] = await redis.eval(voteScript, [key], []) as [Record<string, string>, string[]];
-            const cleanVotedIds = votedIds.filter((id) => id !== "null" && id !== null);
-            console.log("[VoterData]", voterData)
-            const cleanVoterData = Object.entries(voterData).filter(([key, val]) => key && val);
-            console.log("[cleanVoterData]", cleanVoterData)
-
-            let maxCount = 0;
-            const occ: Record<string, number> = {};
-
-            for (const id of cleanVotedIds) {
-                occ[id] = (occ[id] || 0) + 1;
+            if (isVoting) {
+                const [voterData, votedIds] = await getVotingData(key);
+                ({ votedPlayerIds, voterByCandidate } = tallyingVotes(voterData, votedIds));
             }
 
-            for (const key in occ) {
-                if (occ[key] > maxCount) {
-                    maxCount = occ[key];
-                    votedPlayerIds = [key];
-                } else if (occ[key] === maxCount) {
-                    votedPlayerIds.push(key);
-                }
-            }
-            console.log("[Voted Ids]", votedPlayerIds)
+            const endGame = winningCondition(data, nextPhase);
 
-            cleanVoterData.forEach(([key, val]) => {
-                if (voterByCandidate[val]) {
-                    voterByCandidate[val].push(key);
-                } else {
-                    voterByCandidate[val] = [key];
-                }
-            })
-        }
+            updatedState = {
+                phase: nextPhase,
+                phaseEndAt: Date.now() + (Number(phaseEndAtDuration) * 1000),
+                round: isNextRound ? Number(data.round) + 1 : Number(data.round),
+                votedPlayerId: (isVoting && votedPlayerIds.length === 1) ? votedPlayerIds[0] : "none",
+                voterByCandidate: JSON.stringify(voterByCandidate),
+                endGame: endGame,
+                resolvingToken: data.resolvingEndAt,
+            };
 
-        let endGame = "inProgress";
-        const isGoodWon = Number(data.badSide) === 0;
-        const isBadWon = Number(data.goodSide) === 0;
-        const isGameEnd = (isBadWon || isGoodWon) && (nextPhase === "night" || nextPhase === "day");
-
-        if (isGameEnd) {
-            if (isGoodWon) endGame = "goodEnd";
-            if (isBadWon) endGame = "badEnd";
-        }
-        console.log("[Game End]", isGameEnd)
-        console.log("[Good Side]", data.goodSide, isGoodWon)
-        console.log("[Bad Side]", data.badSide, isBadWon)
-
-        updatedState = {
-            phase: nextPhase,
-            phaseEndAt: Date.now() + (phaseEndAtDuration * 1000),
-            round: isNextRound ? Number(data.round) + 1 : Number(data.round),
-            votedPlayerId: (isVoting && votedPlayerIds.length === 1) ? votedPlayerIds[0] : "none",
-            voterByCandidate: JSON.stringify(voterByCandidate),
-            endGame: endGame,
-            resolvingToken: data.resolvingEndAt,
+            await writebackResolver(key, userId, updatedState);
         };
-    };
 
-    const script = `
-    local userId = ARGV[1]
-    local key = KEYS[1]
-    local activePlayersIdsKey = key .. ':activePlayersIds'
-    local deadPlayersIdsKey = key .. ':deadPlayersIds'
-    local updatedState = cjson.decode(ARGV[2])
+        const [gameData, activePlayersIds] = await gameRoomPoll(key, userId);
 
-    -- if resolver is too long and someone has took over, abort the writeback
-    if next(updatedState) ~= nil
-        and tostring(updatedState.resolvingToken) ~= redis.call('HGET', key, 'resolvingEndAt') then
-        updatedState = {}
-    end 
+        if (!gameData) {
+            return { gameState: null, activePlayersIds };
+        }
 
-    -- check if its a phase transitioning poll
-    if next(updatedState) ~= nil then
-        local roundCount = redis.call('HGET', key, 'round')
+        console.log("[lastDeadPlayerId]", gameData.lastDeadPlayerId)
+        const validVoterByCandidate = mapVoterByCandidatesToNames(gameData);
 
-        -- if vote result is not tied or none
-        if updatedState.votedPlayerId ~= "none" then
-            -- execute the voted player
-            local votedPlayerStatus = 'p:' .. updatedState.votedPlayerId .. ':status'
-            local deadPlayerId = updatedState.votedPlayerId
-            redis.call('HSET', key, votedPlayerStatus, 'dead', 'lastDeadPlayerId', updatedState.votedPlayerId)
-            redis.call('SADD', deadPlayersIdsKey, deadPlayerId)
+        const gameState = {
+            user: {
+                id: String(userId),
+                name: String(gameData[`p:${userId}:name`]),
+                role: String(gameData[`p:${userId}:role`]),
+                status: String(gameData[`p:${userId}:status`]),
+                side: String(gameData[`p:${userId}:side`]),
+            },
+            players: activePlayersIds
+                .filter((id) => id !== userId)
+                .map((id) => {
+                    const name = String(gameData[`p:${id}:name`]);
+                    const status = String(gameData[`p:${id}:status`]);
+                    let role = 'unknown';
+                    let side = 'unknown';
 
-            -- and reduce its side amount
-            local deadPlayerSide = 'p:' .. deadPlayerId .. ':side'
-            local decreasedSide = redis.call('HGET', key, deadPlayerSide)
-            redis.call('HINCRBY', key, decreasedSide .. 'Side', -1)
-        end
+                    // bad sides can see each other and dead players are revealed
+                    if (gameData[`p:${id}:role`] && gameData[`p:${id}:side`]) {
+                        role = String(gameData[`p:${id}:role`]);
+                        side = String(gameData[`p:${id}:side`]);
+                    }
 
-        -- clean lastDeadPlayerId after count phases
-        if updatedState.phase == 'day' or updatedState.phase == 'night' then
-            redis.call('HSET', key, 'lastDeadPlayerId', "none")
-            redis.call('HSET', key, 'voterByCandidate', "{}")
-        end
-
-        redis.call('HSET', key,
-            'phase', updatedState.phase,
-            'phaseEndAt', updatedState.phaseEndAt,
-            'round', updatedState.round,
-            'voterByCandidate', updatedState.voterByCandidate,
-            'endGame', updatedState.endGame
-        )
-    end
-
-    local playerIds = redis.call('SMEMBERS', activePlayersIdsKey)
-    local endGame = redis.call('HGET', key, 'endGame')
-    local playerSide = redis.call('HGET', key, 'p:' .. userId .. ':side')
-    local gameStateFields = {
-        'phase',
-        'phaseEndAt',
-        'round',
-        'lastDeadPlayerId',
-        'voterByCandidate',
-        'endGame', 
-    }
-   
-    -- assigning side to each player
-    -- so bad sides can see each other
-    local sideFields = {}
-    local otherPlayerIds = {}
-    
-    for i = 1, #playerIds, 1 do
-        if playerIds[i] ~= userId then
-            table.insert(otherPlayerIds, playerIds[i])
-            table.insert(sideFields, 'p:' .. playerIds[i] .. ':side')
-        end
-    end
-        
-    local sideValue = redis.call('HMGET', key, unpack(sideFields))
-    local sides = {}
-
-    for i, id in ipairs(otherPlayerIds) do
-        sides[id] = sideValue[i]
-    end
-
-    local deadPlayersIds = redis.call('SMEMBERS', deadPlayersIdsKey)
-    local deadPlayersIdsSet = {}
-
-    for _, id in ipairs(deadPlayersIds) do
-        deadPlayersIdsSet[id] = true
-    end
-
-    for i = 1, #playerIds, 1 do
-        if playerIds[i] == userId then
-            table.insert(gameStateFields, 'p:' .. playerIds[i] .. ':name')
-            table.insert(gameStateFields, 'p:' .. playerIds[i] .. ':role')
-            table.insert(gameStateFields, 'p:' .. playerIds[i] .. ':status')
-            table.insert(gameStateFields, 'p:' .. playerIds[i] .. ':side')
-        else
-            table.insert(gameStateFields, 'p:' .. playerIds[i] .. ':name')
-            table.insert(gameStateFields, 'p:' .. playerIds[i] .. ':status')
-
-            if (playerSide == 'bad' and sides[playerIds[i]] == 'bad') 
-                or (deadPlayersIdsSet[playerIds[i]]) 
-                or (endGame ~= 'inProgress') then
-                table.insert(gameStateFields, 'p:' .. playerIds[i] .. ':side')
-                table.insert(gameStateFields, 'p:' .. playerIds[i] .. ':role')
-            end
-        end
-    end
-    
-    local value = redis.call('HMGET', key, unpack(gameStateFields))
-    local gameData = {}
-
-    for i, field in ipairs(gameStateFields) do
-        gameData[field] = value[i]
-    end
-
-    return {cjson.encode(gameData), playerIds}
-    `
-    const [gameData, activePlayersIds] = await redis.eval(script, [key], [userId, updatedState]) as [RedisGameRoom, string[]];
-
-    if (!gameData) {
-        return { gameState: null, activePlayersIds };
-    }
-
-    const lastDeadPlayerId = gameData.lastDeadPlayerId;
-    console.log("[lastDeadPlayerId]", lastDeadPlayerId)
-
-    const parsedVoterByCandidate = JSON.parse(gameData.voterByCandidate) as Record<string, string[]>;
-    const entriesVoterByCandidate = Object.entries(parsedVoterByCandidate);
-
-    const validVoterByCandidate: Record<string, string[]> = entriesVoterByCandidate.length
-        ? Object.fromEntries(
-            entriesVoterByCandidate.map(([voted, voters]) => [
-                voted === "none" ? "none" : gameData[`p:${voted}:name`],
-                voters.map((voter) => String(gameData[voter.replace(':vote', ':name')]))
-            ])
-        )
-        : {};
-
-    console.log("[voterByCandidate]", validVoterByCandidate)
-
-    const gameState = {
-        user: {
-            id: String(userId),
-            name: String(gameData[`p:${userId}:name`]),
-            role: String(gameData[`p:${userId}:role`]),
-            status: String(gameData[`p:${userId}:status`]),
-            side: String(gameData[`p:${userId}:side`]),
-        },
-        players: activePlayersIds
-            .filter((id) => id !== userId)
-            .map((id) => {
-                const name = String(gameData[`p:${id}:name`]);
-                const status = String(gameData[`p:${id}:status`]);
-                let role = 'unknown';
-                let side = 'unknown';
-
-                // bad sides can see each other and dead players are revealed
-                if (gameData[`p:${id}:role`] && gameData[`p:${id}:side`]) {
-                    role = String(gameData[`p:${id}:role`]);
-                    side = String(gameData[`p:${id}:side`]);
-                }
-
-                return {
-                    name,
-                    role,
-                    status,
-                    id: String(id),
-                    side,
-                }
-            }),
-        phase: gameData.phase,
-        phaseEndAt: Number(gameData.phaseEndAt),
-        round: gameData.round,
-        lastDeadPlayerId: lastDeadPlayerId === "none" ? "none" : lastDeadPlayerId,
-        voterByCandidate: Object.keys(validVoterByCandidate).length ? validVoterByCandidate : {},
-        endGame: gameData.endGame,
-    }
+                    return {
+                        name,
+                        role,
+                        status,
+                        id: String(id),
+                        side,
+                    }
+                }),
+            phase: gameData.phase,
+            phaseEndAt: Number(gameData.phaseEndAt),
+            round: gameData.round,
+            lastDeadPlayerId: gameData.lastDeadPlayerId === "none" ? "none" : gameData.lastDeadPlayerId,
+            voterByCandidate: Object.keys(validVoterByCandidate).length ? validVoterByCandidate : {},
+            endGame: gameData.endGame,
+        }
 
         return { gameState, activePlayersIds };
     } catch (error) {
