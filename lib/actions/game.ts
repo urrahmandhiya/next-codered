@@ -1,10 +1,10 @@
 "use server";
 
+import { ActionResponse, GameState } from "@/lib/definitions";
+import { mapVoterByCandidatesToNames, phaseTransition, tallyingVotes, winningCondition } from "@/lib/pure/game";
+import { gameRoomPoll, gatekeepResolver, getVotingData, writebackResolver } from "@/lib/redis-lua/game";
 import { Redis } from "@upstash/redis";
 import { cookies } from "next/headers";
-import { ActionResponse, GameState } from "../definitions";
-import { mapVoterByCandidatesToNames, phaseTransition, tallyingVotes, winningCondition } from "../pure/game";
-import { gameRoomPoll, gatekeepResolver, getVotingData, writebackResolver } from "../redis-lua/game";
 
 const redis = Redis.fromEnv();
 

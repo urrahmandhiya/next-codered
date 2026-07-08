@@ -1,4 +1,4 @@
-import { DynamicFields, GameRoomMetaData, RedisGameRoom } from "../definitions";
+import { DynamicFields, GameRoomMetaData, RedisGameRoom } from "@/lib/definitions";
 
 export function phaseTransition(data: Omit<GameRoomMetaData, 'lastDeadPlayerId' | 'voterByCandidate'>) {
     const ROUND_0_PHASE = {

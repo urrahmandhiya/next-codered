@@ -1,7 +1,7 @@
 "use server";
 
+import { GameRoomMetaData, RedisGameRoom } from "@/lib/definitions";
 import { Redis } from "@upstash/redis";
-import { GameRoomMetaData, RedisGameRoom } from "../definitions";
 
 const redis = Redis.fromEnv();
 
