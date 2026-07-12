@@ -7,7 +7,7 @@ const redis = Redis.fromEnv();
 
 export async function gatekeepResolver(
     key: string, currentTime: number):
-    Promise<[boolean, Omit<GameRoomMetaData, 'lastDeadPlayerId' | 'voterByCandidate'>]> {
+    Promise<[boolean, Omit<GameRoomMetaData, 'lastDeadPlayerId' | 'voterByCandidateJson'>]> {
     const gatekeepScript = `
     local gameStateFields = {
         'phase',
@@ -15,17 +15,31 @@ export async function gatekeepResolver(
         'voteDuration',
         'round',
         'phaseEndAt',
+        'resolvingEndAt',
         'badSide',
         'goodSide',
         'endGame',
-        'resolvingEndAt',
+    }
+
+    local numberFieldSet = {
+        ['discussDuration'] = true,
+        ['voteDuration'] = true,
+        ['round'] = true,
+        ['phaseEndAt'] = true,
+        ['resolvingEndAt'] = true,
+        ['goodSide'] = true,
+        ['badSide'] = true,
     }
 
     local value = redis.call('HMGET', KEYS[1], unpack(gameStateFields))
     local data = {}
 
     for i, field in ipairs(gameStateFields) do
-        data[field] = value[i]
+        if numberFieldSet[field] then
+            data[field] = tonumber(value[i])
+        else
+            data[field] = value[i]
+        end
     end
 
     local isResolver = false
@@ -43,7 +57,7 @@ export async function gatekeepResolver(
     return {isResolver, cjson.encode(data)}
     `;
 
-    const [isResolver, data] = await redis.eval(gatekeepScript, [key], [currentTime]) as [boolean, Omit<GameRoomMetaData, 'lastDeadPlayerId' | 'voterByCandidate'>];
+    const [isResolver, data] = await redis.eval(gatekeepScript, [key], [currentTime]) as [boolean, Omit<GameRoomMetaData, 'lastDeadPlayerId' | 'voterByCandidateJson'>];
     return [isResolver, data];
 }
 
@@ -58,11 +72,15 @@ export async function getVotingData(key: string): Promise<[Record<string, string
         table.insert(voteFields, 'p:' .. playerIds[i] .. ':vote')
     end
 
-    local votedIds = redis.call('HMGET', KEYS[1], unpack(voteFields))
+    local votedValue = redis.call('HMGET', KEYS[1], unpack(voteFields))
+    local votedIds = {}
     local voterData = {}
 
     for i, field in ipairs(voteFields) do
-        voterData[field] = votedIds[i]
+        if votedValue[i] then
+            voterData[field] = votedValue[i]
+            table.insert(votedIds, votedValue[i])
+        end
     end 
 
     -- clean the vote fields for next voting
@@ -113,7 +131,7 @@ export async function writebackResolver(key: string, userId: string, updatedStat
         if updatedState.phase == 'day' or updatedState.phase == 'night' then
             redis.call('HSET', key, 
                 'lastDeadPlayerId', "none", 
-                'voterByCandidate', "{}"
+                'voterByCandidateJson', "{}"
             )
         end
 
@@ -121,7 +139,7 @@ export async function writebackResolver(key: string, userId: string, updatedStat
             'phase', updatedState.phase,
             'phaseEndAt', updatedState.phaseEndAt,
             'round', updatedState.round,
-            'voterByCandidate', updatedState.voterByCandidate,
+            'voterByCandidateJson', updatedState.voterByCandidateJson,
             'endGame', updatedState.endGame
         )
     end
@@ -145,7 +163,7 @@ export async function gameRoomPoll(key: string, userId: string): Promise<[RedisG
         'phaseEndAt',
         'round',
         'lastDeadPlayerId',
-        'voterByCandidate',
+        'voterByCandidateJson',
         'endGame', 
     }
 

@@ -1,7 +1,7 @@
 "use server";
 
 import { ActionResponse, GameState } from "@/lib/definitions";
-import { mapVoterByCandidatesToNames, phaseTransition, tallyingVotes, winningCondition } from "@/lib/pure/game";
+import { mapVoterByCandidatesToNames, phaseTransition, tallyVotes, winningCondition } from "@/lib/pure/game";
 import { gameRoomPoll, gatekeepResolver, getVotingData, writebackResolver } from "@/lib/redis-lua/game";
 import { Redis } from "@upstash/redis";
 import { cookies } from "next/headers";
@@ -31,17 +31,17 @@ export async function getGameState(roomCode: string): Promise<{ gameState: GameS
 
             if (isVoting) {
                 const [voterData, votedIds] = await getVotingData(key);
-                ({ votedPlayerIds, voterByCandidate } = tallyingVotes(voterData, votedIds));
+                ({ votedPlayerIds, voterByCandidate } = tallyVotes(voterData, votedIds));
             }
 
             const endGame = winningCondition(data, nextPhase);
 
             updatedState = {
                 phase: nextPhase,
-                phaseEndAt: Date.now() + (Number(phaseEndAtDuration) * 1000),
-                round: isNextRound ? Number(data.round) + 1 : Number(data.round),
+                phaseEndAt: Date.now() + (phaseEndAtDuration * 1000),
+                round: isNextRound ? data.round + 1 : data.round,
                 votedPlayerId: (isVoting && votedPlayerIds.length === 1) ? votedPlayerIds[0] : "none",
-                voterByCandidate: JSON.stringify(voterByCandidate),
+                voterByCandidateJson: JSON.stringify(voterByCandidate),
                 endGame: endGame,
                 resolvingToken: data.resolvingEndAt,
             };
@@ -91,8 +91,8 @@ export async function getGameState(roomCode: string): Promise<{ gameState: GameS
             phase: gameData.phase,
             phaseEndAt: Number(gameData.phaseEndAt),
             round: gameData.round,
-            lastDeadPlayerId: gameData.lastDeadPlayerId === "none" ? "none" : gameData.lastDeadPlayerId,
-            voterByCandidate: Object.keys(validVoterByCandidate).length ? validVoterByCandidate : {},
+            lastDeadPlayerId: gameData.lastDeadPlayerId,
+            voterByCandidate: validVoterByCandidate,
             endGame: gameData.endGame,
         }
 
