@@ -19,9 +19,10 @@ export default function RoomManager() {
 
     const { data, error } = useSWR(roomCode, updateRoomState, {
         refreshInterval: (currentData) => {
-            if (isDev) return 0;
             const isGameRunning = currentData?.roomStatus === "playing";
             const isStartingPhaseOver = currentData?.phase !== "starting";
+            // Keep polling until fully transitioned to game + past starting phase.
+            // Without this, DEV mode never detects waiting→playing transition.
             if (isGameRunning && isStartingPhaseOver) return 0;
             return 5000;
         },
@@ -46,7 +47,7 @@ export default function RoomManager() {
     const roomStatus = data ? data.roomStatus : "waiting";
 
     return (
-        <main className="flex flex-1 w-full max-w-4xl flex-col items-center justify-start py-12 px-4 bg-transparent">
+        <main className="flex flex-1 w-full max-w-5xl flex-col items-center justify-center py-12 px-4 bg-transparent">
             {roomStatus === "waiting" && <WaitingRoom roomCode={roomCode} />}
             {roomStatus === "playing" && <GameRoom roomCode={roomCode} />}
         </main>
