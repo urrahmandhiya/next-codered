@@ -26,11 +26,67 @@ export default function Page() {
                 <div className="flex flex-col w-full gap-4 justify-center items-center">
                     <Button
                         onClick={() => goToWaitingRoom()}
-                        className="flex items-center justify-center w-full max-w-[16rem] h-14 bg-[#0A050B]/80 backdrop-blur-md border border-green-900/60 text-green-500 hover:bg-green-950/40 hover:text-green-400 hover:border-green-700 rounded-full transition-all uppercase tracking-widest text-xs font-semibold shadow-[0_0_15px_rgba(220,38,38,0.15)]"
+                        className="flex items-center justify-center w-full max-w-[18rem] h-12 bg-[#0A050B]/80 backdrop-blur-md border border-green-900/60 text-green-500 hover:bg-green-950/40 hover:text-green-400 hover:border-green-700 rounded-full transition-all uppercase tracking-widest text-xs font-semibold shadow-[0_0_15px_rgba(220,38,38,0.15)]"
                     >
                         Go to Waiting Room
-                        <ArrowRight className="w-4 h-4 mr-2" />
+                        <ArrowRight className="w-4 h-4 ml-2" />
                     </Button>
+                    <Link
+                        href="/dev/ui/cycle"
+                        className="flex items-center justify-center w-full max-w-[18rem] h-12 bg-[#0A050B]/80 backdrop-blur-md border border-cyan-900/60 text-cyan-500 hover:bg-cyan-950/40 hover:text-cyan-400 hover:border-cyan-700 rounded-full transition-all uppercase tracking-widest text-xs font-semibold shadow-[0_0_15px_rgba(6,182,212,0.15)] cursor-pointer text-center"
+                    >
+                        Full Game Cycle Loop
+                        <ArrowRight className="w-4 h-4 ml-2" />
+                    </Link>
+                    <Link
+                        href="/dev/ui/downtime"
+                        className="flex items-center justify-center w-full max-w-[18rem] h-12 bg-[#0A050B]/80 backdrop-blur-md border border-rose-900/60 text-rose-500 hover:bg-rose-950/40 hover:text-rose-400 hover:border-rose-700 rounded-full transition-all uppercase tracking-widest text-xs font-semibold shadow-[0_0_15px_rgba(255,42,85,0.15)] cursor-pointer text-center"
+                    >
+                        Downtime Good Side UI
+                        <ArrowRight className="w-4 h-4 ml-2" />
+                    </Link>
+                    <Link
+                        href="/dev/ui/downtime-bad"
+                        className="flex items-center justify-center w-full max-w-[18rem] h-12 bg-[#0A050B]/80 backdrop-blur-md border border-rose-900/60 text-rose-500 hover:bg-rose-950/40 hover:text-rose-400 hover:border-rose-700 rounded-full transition-all uppercase tracking-widest text-xs font-semibold shadow-[0_0_15px_rgba(255,42,85,0.15)] cursor-pointer text-center"
+                    >
+                        Downtime Bad Side UI
+                        <ArrowRight className="w-4 h-4 ml-2" />
+                    </Link>
+                    <Link
+                        href="/dev/ui/uptime"
+                        className="flex items-center justify-center w-full max-w-[18rem] h-12 bg-[#0A050B]/80 backdrop-blur-md border border-cyan-900/40 text-cyan-400 hover:bg-cyan-950/30 hover:text-cyan-300 hover:border-cyan-700 rounded-full transition-all uppercase tracking-widest text-xs font-semibold cursor-pointer text-center"
+                    >
+                        Uptime UI Preview
+                        <ArrowRight className="w-4 h-4 ml-2" />
+                    </Link>
+                    <Link
+                        href="/dev/ui/hearing"
+                        className="flex items-center justify-center w-full max-w-[18rem] h-12 bg-[#0A050B]/80 backdrop-blur-md border border-cyan-900/40 text-cyan-400 hover:bg-cyan-950/30 hover:text-cyan-300 hover:border-cyan-700 rounded-full transition-all uppercase tracking-widest text-xs font-semibold cursor-pointer text-center"
+                    >
+                        Hearing UI Preview
+                        <ArrowRight className="w-4 h-4 ml-2" />
+                    </Link>
+                    <Link
+                        href="/dev/ui/kill-vote"
+                        className="flex items-center justify-center w-full max-w-[18rem] h-12 bg-[#0A050B]/80 backdrop-blur-md border border-rose-900/40 text-rose-400 hover:bg-rose-950/30 hover:text-rose-300 hover:border-rose-700 rounded-full transition-all uppercase tracking-widest text-xs font-semibold cursor-pointer text-center"
+                    >
+                        Kill Vote UI Preview
+                        <ArrowRight className="w-4 h-4 ml-2" />
+                    </Link>
+                    <Link
+                        href="/dev/ui/incident-report"
+                        className="flex items-center justify-center w-full max-w-[18rem] h-12 bg-[#0A050B]/80 backdrop-blur-md border border-cyan-900/40 text-cyan-400 hover:bg-cyan-950/30 hover:text-cyan-300 hover:border-cyan-700 rounded-full transition-all uppercase tracking-widest text-xs font-semibold cursor-pointer text-center"
+                    >
+                        Incident Report UI
+                        <ArrowRight className="w-4 h-4 ml-2" />
+                    </Link>
+                    <Link
+                        href="/dev/ui/end-screen"
+                        className="flex items-center justify-center w-full max-w-[18rem] h-12 bg-[#0A050B]/80 backdrop-blur-md border border-zinc-700/60 text-zinc-400 hover:bg-zinc-800/40 hover:text-zinc-200 hover:border-zinc-500 rounded-full transition-all uppercase tracking-widest text-xs font-semibold cursor-pointer text-center"
+                    >
+                        End Game UI Preview
+                        <ArrowRight className="w-4 h-4 ml-2" />
+                    </Link>
                 </div>
             </main>
 
