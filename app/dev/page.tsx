@@ -1,26 +1,24 @@
 "use client"
 
-import { Terminal, ArrowLeft, ArrowRight } from "lucide-react";
+import { ArrowLeft, ArrowRight } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { goToWaitingRoom } from "@/lib/actions/mock";
 
 export default function Page() {
     return (
-        <div className="flex flex-col min-h-screen bg-[#050B14] text-zinc-100 font-sans">
-            {/* Main Content */}
-            <main className="flex-1 flex flex-col items-center px-4 pt-10 pb-28 md:pb-16 w-full max-w-md mx-auto relative z-10">
-                {/* Desktop Top-Left Back Button */}
-                <div className="w-full hidden md:flex justify-start mb-6">
-                    <Link
-                        href="/"
-                        className="flex items-center justify-center px-4 py-2 bg-[#0A050B]/80 backdrop-blur-md border border-red-900/60 text-red-500 hover:bg-red-950/40 hover:text-red-400 hover:border-red-700 rounded-full transition-all uppercase tracking-widest text-[10px] font-semibold shadow-[0_0_10px_rgba(220,38,38,0.1)] cursor-pointer"
-                    >
-                        <ArrowLeft className="w-3.5 h-3.5 mr-1.5" />
-                        Back
-                    </Link>
-                </div>
+        <div className="flex flex-col min-h-screen bg-[#050B14] text-zinc-100 font-sans relative">
+            {/* Desktop Top-Left Back Button */}
+            <Link
+                href="/"
+                className="fixed top-6 left-6 hidden md:flex items-center justify-center px-4 py-2 bg-[#0A050B]/80 backdrop-blur-md border border-red-900/60 text-red-500 hover:bg-red-950/40 hover:text-red-400 hover:border-red-700 rounded-full transition-all uppercase tracking-widest text-xs font-semibold shadow-[0_0_10px_rgba(220,38,38,0.15)] cursor-pointer z-30"
+            >
+                <ArrowLeft className="w-4 h-4 mr-2" />
+                Back to Home
+            </Link>
 
+            {/* Main Content */}
+            <main className="flex-1 flex flex-col items-center px-4 pt-12 pb-28 md:pb-16 w-full max-w-md mx-auto relative z-10">
                 <h2 className="text-cyan-400 text-[0.7rem] tracking-[0.15em] mb-6 font-mono font-medium text-center">
                     SHORTCUT TO A STATE/ROOM WITH DUMMIES
                 </h2>
