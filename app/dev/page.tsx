@@ -9,8 +9,9 @@ export default function Page() {
     return (
         <div className="flex flex-col min-h-screen bg-[#050B14] text-zinc-100 font-sans">
             {/* Main Content */}
-            <main className="flex-1 flex flex-col items-center px-4 pt-10 pb-16 w-full max-w-md mx-auto relative z-10">
-                <div className="w-full flex justify-start mb-6">
+            <main className="flex-1 flex flex-col items-center px-4 pt-10 pb-28 md:pb-16 w-full max-w-md mx-auto relative z-10">
+                {/* Desktop Top-Left Back Button */}
+                <div className="w-full hidden md:flex justify-start mb-6">
                     <Link
                         href="/"
                         className="flex items-center justify-center px-4 py-2 bg-[#0A050B]/80 backdrop-blur-md border border-red-900/60 text-red-500 hover:bg-red-950/40 hover:text-red-400 hover:border-red-700 rounded-full transition-all uppercase tracking-widest text-[10px] font-semibold shadow-[0_0_10px_rgba(220,38,38,0.1)] cursor-pointer"
@@ -90,6 +91,17 @@ export default function Page() {
                     </Link>
                 </div>
             </main>
+
+            {/* Mobile Sticky Bottom Bar Back Button */}
+            <div className="fixed bottom-0 left-0 right-0 p-6 bg-linear-to-t from-[#050B14] via-[#050B14]/90 to-transparent flex justify-center z-20 pb-8 md:hidden">
+                <Link
+                    href="/"
+                    className="flex items-center justify-center w-full max-w-[16rem] h-14 bg-[#0A050B]/80 backdrop-blur-md border border-red-900/60 text-red-500 hover:bg-red-950/40 hover:text-red-400 hover:border-red-700 rounded-full transition-all uppercase tracking-widest text-xs font-semibold shadow-[0_0_15px_rgba(220,38,38,0.15)]"
+                >
+                    <ArrowLeft className="w-4 h-4 mr-2" />
+                    Back to Home
+                </Link>
+            </div>
         </div>
     );
 }
