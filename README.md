@@ -20,7 +20,7 @@ Mafia/Werewolf-like web based game with cyber theme, built with Next.js
 
 ### 1. Environment Variables
 
-Use the `.env.example` file in the root of the project and add your Upstash Redis credentials. The project will fail to connect without these.
+Use the `.env.example` file in the root of the project and add your Upstash Redis credentials.
 
 
 ### 2. Installation
