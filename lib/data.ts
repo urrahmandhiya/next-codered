@@ -1,5 +1,5 @@
-import { getGameState } from "./actions/game";
-import { getRoomState } from "./actions/room";
+import { getGameState } from "@/lib/actions/game";
+import { getRoomState } from "@/lib/actions/room";
 
 export async function updateRoomState(roomCode: string) {
     const { room } = await getRoomState(roomCode);

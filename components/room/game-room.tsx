@@ -129,7 +129,7 @@ export default function GameRoom({ roomCode }: { roomCode: string }) {
   if (phase === "starting" && isUserAlive) {
     return (
       <PhaseLayout theme="starting">
-        <header className="absolute top-0 left-0 w-full h-[63px] bg-slate-950/60 border-b border-cyan/20 backdrop-blur-md z-50 flex items-center justify-center px-6">
+        <header className="absolute top-0 left-0 w-full h-15.75 bg-slate-950/60 border-b border-cyan/20 backdrop-blur-md z-50 flex items-center justify-center px-6">
           <div className="flex items-center gap-2">
             <span className="w-2.5 h-2.5 bg-cyan rounded-full" />
             <span className="font-mono text-xs md:text-sm tracking-[0.2em] text-cyan uppercase opacity-90 text-glow-cyan">
@@ -138,10 +138,10 @@ export default function GameRoom({ roomCode }: { roomCode: string }) {
           </div>
         </header>
 
-        <div className="md:hidden flex flex-col justify-between h-full w-full max-w-[390px] mx-auto pt-[70px] pb-6 relative font-mono">
+        <div className="md:hidden flex flex-col justify-between h-full w-full max-w-97.5 mx-auto pt-17.5 pb-6 relative font-mono">
           <div className="flex-1 flex flex-col justify-center items-center gap-8 my-auto z-10">
             <div className="w-24 h-24 rounded-full border border-cyan/30 flex items-center justify-center relative overflow-hidden bg-cyan/5">
-              <div className="absolute inset-0 bg-gradient-to-b from-transparent via-cyan/20 to-transparent w-full h-1/2 animate-scanline" />
+              <div className="absolute inset-0 bg-linear-to-b from-transparent via-cyan/20 to-transparent w-full h-1/2 animate-scanline" />
               <User className="w-10 h-10 text-cyan drop-shadow-[0_0_8px_rgba(6,182,212,0.6)]" />
             </div>
 
@@ -149,16 +149,16 @@ export default function GameRoom({ roomCode }: { roomCode: string }) {
               <h3 className="font-mono text-sm tracking-widest text-zinc-500 uppercase">IDENT_CONFIRMED</h3>
               <div className="space-y-1">
                 {role === "werewolf" ? (
-                  <h2 className="text-4xl font-bold text-[#FF2A55] tracking-[0.1em] drop-shadow-[0_0_12px_rgba(255,42,85,0.4)] uppercase">
+                  <h2 className="text-4xl font-bold text-[#FF2A55] tracking-widest drop-shadow-[0_0_12px_rgba(255,42,85,0.4)] uppercase">
                     WEREWOLF
                   </h2>
                 ) : (
-                  <h2 className="text-4xl font-bold text-cyan tracking-[0.1em] text-glow-cyan uppercase">
+                  <h2 className="text-4xl font-bold text-cyan tracking-widest text-glow-cyan uppercase">
                     VILLAGER
                   </h2>
                 )}
               </div>
-              <p className="text-xs text-zinc-400 font-mono max-w-[280px] mx-auto leading-relaxed">
+              <p className="text-xs text-zinc-400 font-mono max-w-70 mx-auto leading-relaxed">
                 {role === "werewolf"
                   ? "Infiltrate the network. Eliminate the villagers under the cover of night."
                   : "Analyze network activity. Identify and vote out the anomalies before you are compromised."}
@@ -168,17 +168,17 @@ export default function GameRoom({ roomCode }: { roomCode: string }) {
 
           <div className="flex flex-col items-center gap-2">
             <span className="font-mono text-[10px] tracking-widest text-zinc-500 uppercase">LINK_STABILIZING_IN</span>
-            <span className="font-mono text-3xl font-bold text-white tracking-[0.1em]">
+            <span className="font-mono text-3xl font-bold text-white tracking-widest">
               {formattedMinutes}:{formattedSeconds}
             </span>
           </div>
         </div>
 
-        <div className="hidden md:flex flex-col flex-1 w-full max-w-5xl mx-auto pt-[80px] pb-8 justify-between font-mono">
+        <div className="hidden md:flex flex-col flex-1 w-full max-w-5xl mx-auto pt-20 pb-8 justify-between font-mono">
           <div className="flex gap-12 items-center justify-center flex-1 my-auto">
             <div className="flex flex-col items-center text-center gap-6 flex-1">
               <div className="w-28 h-28 rounded-full border border-cyan/40 flex items-center justify-center relative overflow-hidden bg-cyan/10 shadow-[0_0_30px_rgba(6,182,212,0.2)]">
-                <div className="absolute inset-0 bg-gradient-to-b from-transparent via-cyan/30 to-transparent w-full h-1/2 animate-scanline" />
+                <div className="absolute inset-0 bg-linear-to-b from-transparent via-cyan/30 to-transparent w-full h-1/2 animate-scanline" />
                 <User className="w-12 h-12 text-cyan drop-shadow-[0_0_12px_rgba(6,182,212,0.6)]" />
               </div>
 
@@ -203,7 +203,7 @@ export default function GameRoom({ roomCode }: { roomCode: string }) {
               </div>
             </div>
 
-            <div className="w-[420px] shrink-0 bg-slate-950/70 border border-cyan/20 p-8 rounded-3xl backdrop-blur-md flex flex-col justify-between gap-6 shadow-[0_0_50px_rgba(6,182,212,0.08)]">
+            <div className="w-105 shrink-0 bg-slate-950/70 border border-cyan/20 p-8 rounded-3xl backdrop-blur-md flex flex-col justify-between gap-6 shadow-[0_0_50px_rgba(6,182,212,0.08)]">
               <div className="flex items-center gap-2 border-b border-cyan/20 pb-4">
                 <span className="w-2 h-2 bg-cyan rounded-full" />
                 <h3 className="font-mono text-xs tracking-[0.2em] text-cyan uppercase font-semibold">
@@ -231,7 +231,7 @@ export default function GameRoom({ roomCode }: { roomCode: string }) {
                 <span className="font-mono text-[11px] tracking-[0.2em] text-cyan/80 uppercase">
                   LINK_STABILIZING_IN
                 </span>
-                <span className="font-mono text-4xl font-bold text-white tracking-[0.1em] text-glow-cyan">
+                <span className="font-mono text-4xl font-bold text-white tracking-widest text-glow-cyan">
                   {formattedMinutes}:{formattedSeconds}
                 </span>
               </div>
