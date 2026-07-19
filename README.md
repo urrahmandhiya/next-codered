@@ -7,7 +7,7 @@ Mafia/Werewolf-like web based game with cyber theme, built with Next.js
 * **Framework:** Next.js 16 (App Router) & React 19
 * **Styling/Components:** Tailwind, shadcn base/ui, and `next-themes` for dark mode
 * **Data Fetching:** SWR (polling)
-* **Database:** Upstash Redis (lua in some part)
+* **Database:** Upstash Redis
 
 ## Prerequisites
 
