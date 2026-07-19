@@ -28,8 +28,8 @@ export default function WaitingRoom({ roomCode }: { roomCode: string }) {
     const [copied, setCopied] = useState(false);
     const router = useRouter();
 
-    const { data, isLoading } = useSWR(roomCode, updateRoomState, {
-        refreshInterval: isDev ? 0 : 5000,
+    const { data, isLoading, mutate } = useSWR(roomCode, updateRoomState, {
+        refreshInterval: 5000,
         revalidateOnFocus: false,
         revalidateOnReconnect: false,
         revalidateIfStale: false,
@@ -52,6 +52,7 @@ export default function WaitingRoom({ roomCode }: { roomCode: string }) {
                 setAlertMessage(result.error)
             } else {
                 setIsStarting(true);
+                mutate();
             }
         })
     }
