@@ -8,10 +8,10 @@ import { revalidatePath } from "next/cache";
 
 const redis = Redis.fromEnv();
 const MINIMAL_CURRENTPLAYERS = 4;
-const CURRENT_ROLES = ["werewolf", "villager"];
+const CURRENT_ROLES = ["hacker", "user"];
 const ROLES_SIDES: DynamicFields = {
-    werewolf: "bad",
-    villager: "good",
+    hacker: "bad",
+    user: "good",
 }
 const rolesFallback = CURRENT_ROLES.map((role) => ({ name: role, amount: 1 }));
 
@@ -39,7 +39,7 @@ export async function getRoomState(roomCode: string): Promise<{ room: Room | nul
 
         let roles: Role[] = [];
 
-        if (Object.hasOwn(roomData, "r:werewolf")) {
+        if (Object.hasOwn(roomData, "r:hacker")) {
             for (const role of CURRENT_ROLES) {
                 roles.push({ name: role, amount: Number(roomData[`r:${role}`]) });
             }
@@ -122,7 +122,7 @@ export async function startGame(roomCode: string): Promise<ActionResponse> {
             throw new Error(`Insufficient players. Minimal number of players to start the game is ${MINIMAL_CURRENTPLAYERS}`);
         }
 
-        if (roomData["r:werewolf"] === undefined || roomData["r:werewolf"] === null) {
+        if (roomData["r:hacker"] === undefined || roomData["r:hacker"] === null) {
             throw new Error("Roles amount is not configured. Ask the host to configure it");
         }
 

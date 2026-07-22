@@ -9,22 +9,22 @@ interface phaseTransition {
 
 export function phaseTransition(data: phaseTransition) {
     const ROUND_0_PHASE = {
-        starting: "night",
-        night: "day",
-        day: "hangVote",
+        starting: "downtime",
+        downtime: "uptime",
+        uptime: "hangVote",
         hangVote: "hangVoteCount",
         hangVoteCount: "hangVoteResult",
-        hangVoteResult: "night",
+        hangVoteResult: "downtime",
     }
     const ROUND_1_PHASE = {
-        night: "killVote",
+        downtime: "killVote",
         killVote: "killVoteCount",
         killVoteCount: "killVoteResult",
-        killVoteResult: "day",
-        day: "hangVote",
+        killVoteResult: "uptime",
+        uptime: "hangVote",
         hangVote: "hangVoteCount",
         hangVoteCount: "hangVoteResult",
-        hangVoteResult: "night",
+        hangVoteResult: "downtime",
     }
     const phaseState: DynamicFields = data.round > 0 ? ROUND_1_PHASE : ROUND_0_PHASE;
     const nextPhase = String(phaseState[data.phase]);
@@ -89,7 +89,7 @@ interface winningCondition {
 export function winningCondition(data: winningCondition, nextPhase: string) {
     const isGoodWon = data.badSide === 0 && data.goodSide > 0;
     const isBadWon = data.goodSide === 0 && data.badSide > 0;
-    const isGameEnd = (isBadWon || isGoodWon) && (nextPhase === "night" || nextPhase === "day");
+    const isGameEnd = (isBadWon || isGoodWon) && (nextPhase === "downtime" || nextPhase === "uptime");
 
     if (isGameEnd) {
         if (isGoodWon) return "goodEnd";

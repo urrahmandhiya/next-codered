@@ -7,7 +7,7 @@ import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 
 const redis = Redis.fromEnv();
-const CURRENT_ROLES = ["werewolf", "villager"];
+const CURRENT_ROLES = ["hacker", "user"];
 
 export async function goToWaitingRoom() {
     const hostId = crypto.randomUUID();
@@ -42,7 +42,7 @@ export async function goToWaitingRoom() {
     const rolesState: { [key: string]: string | number } = {}
 
     for (const role of CURRENT_ROLES) {
-        if (role === "villager") {
+        if (role === "user") {
             rolesState[`r:${role}`] = playerIds.length;
         } else {
             rolesState[`r:${role}`] = 1;

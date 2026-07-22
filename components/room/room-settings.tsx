@@ -62,17 +62,17 @@ export default function RoomSettings({
         const clampedPlayers = Math.max(4, Math.min(25, newPlayersVal));
         setPlayers(clampedPlayers);
 
-        const newMaxWerewolf = Math.floor(clampedPlayers * 0.3);
-        const newWerewolf = Math.max(1, newMaxWerewolf);
-        const newVillager = clampedPlayers - newWerewolf;
+        const newMaxHacker = Math.floor(clampedPlayers * 0.3);
+        const newHacker = Math.max(1, newMaxHacker);
+        const newUser = clampedPlayers - newHacker;
 
         setRolesSetting((prev) =>
             prev.map((role) => {
-                if (role.name === "werewolf") {
-                    return { ...role, amount: newWerewolf };
+                if (role.name === "hacker") {
+                    return { ...role, amount: newHacker };
                 }
-                if (role.name === "villager") {
-                    return { ...role, amount: newVillager };
+                if (role.name === "user") {
+                    return { ...role, amount: newUser };
                 }
                 return role;
             })
@@ -80,18 +80,18 @@ export default function RoomSettings({
     };
 
     const handleRoleChange = (roleName: string, action: "increment" | "decrement") => {
-        const werewolfRole = rolesSetting.find((r) => r.name === "werewolf");
-        const villagerRole = rolesSetting.find((r) => r.name === "villager");
-        if (!werewolfRole || !villagerRole) return;
+        const hackerRole = rolesSetting.find((r) => r.name === "hacker");
+        const userRole = rolesSetting.find((r) => r.name === "user");
+        if (!hackerRole || !userRole) return;
 
-        let wAmount = werewolfRole.amount;
-        let vAmount = villagerRole.amount;
+        let wAmount = hackerRole.amount;
+        let vAmount = userRole.amount;
 
-        const maxWerewolfLimit = Math.floor(players * 0.3);
+        const maxHackerLimit = Math.floor(players * 0.3);
 
-        if (roleName === "werewolf") {
+        if (roleName === "hacker") {
             if (action === "increment") {
-                if (wAmount < maxWerewolfLimit) {
+                if (wAmount < maxHackerLimit) {
                     wAmount += 1;
                     vAmount -= 1;
                 }
@@ -101,14 +101,14 @@ export default function RoomSettings({
                     vAmount += 1;
                 }
             }
-        } else if (roleName === "villager") {
+        } else if (roleName === "user") {
             if (action === "increment") {
                 if (wAmount > 1) {
                     vAmount += 1;
                     wAmount -= 1;
                 }
             } else {
-                if (wAmount < maxWerewolfLimit && vAmount > 1) {
+                if (wAmount < maxHackerLimit && vAmount > 1) {
                     vAmount -= 1;
                     wAmount += 1;
                 }
@@ -117,10 +117,10 @@ export default function RoomSettings({
 
         setRolesSetting((prev) =>
             prev.map((role) => {
-                if (role.name === "werewolf") {
+                if (role.name === "hacker") {
                     return { ...role, amount: wAmount };
                 }
-                if (role.name === "villager") {
+                if (role.name === "user") {
                     return { ...role, amount: vAmount };
                 }
                 return role;
@@ -135,8 +135,8 @@ export default function RoomSettings({
         }
     }, [state, roomCode]);
 
-    const maxWerewolfLimit = Math.floor(players * 0.3);
-    const currentWerewolf = rolesSetting.find(r => r.name === "werewolf")?.amount || 1;
+    const maxHackerLimit = Math.floor(players * 0.3);
+    const currentHacker = rolesSetting.find(r => r.name === "hacker")?.amount || 1;
 
     return (
         <div className="w-full">
@@ -273,20 +273,20 @@ export default function RoomSettings({
                             let disableMinus = false;
                             let disablePlus = false;
 
-                            if (role.name === "werewolf") {
+                            if (role.name === "hacker") {
                                 disableMinus = role.amount <= 1;
-                                disablePlus = role.amount >= maxWerewolfLimit;
-                            } else if (role.name === "villager") {
-                                disableMinus = currentWerewolf >= maxWerewolfLimit || role.amount <= 1;
-                                disablePlus = currentWerewolf <= 1;
+                                disablePlus = role.amount >= maxHackerLimit;
+                            } else if (role.name === "user") {
+                                disableMinus = currentHacker >= maxHackerLimit || role.amount <= 1;
+                                disablePlus = currentHacker <= 1;
                             }
 
                             return (
                                 <div key={role.name} className="flex items-center justify-between p-4 rounded-xl border border-zinc-800 bg-zinc-950/50">
                                     <div className="flex flex-col">
                                         <span className="font-mono text-white capitalize text-base font-bold tracking-wide">{role.name}</span>
-                                        {role.name === "werewolf" && (
-                                            <span className="text-xs text-zinc-500 font-mono mt-1">Max limit: {maxWerewolfLimit}</span>
+                                        {role.name === "hacker" && (
+                                            <span className="text-xs text-zinc-500 font-mono mt-1">Max limit: {maxHackerLimit}</span>
                                         )}
                                     </div>
 
