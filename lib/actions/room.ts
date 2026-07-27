@@ -5,6 +5,7 @@ import { Lock } from "@upstash/lock";
 import { cookies } from "next/headers";
 import { ActionResponse, DynamicFields, RedisRoom, Role, Room } from "../definitions";
 import { revalidatePath } from "next/cache";
+import { checkDailyRateLimit } from "@/lib/ratelimit";
 
 const redis = Redis.fromEnv();
 const MINIMAL_CURRENTPLAYERS = 4;
@@ -138,6 +139,11 @@ export async function startGame(roomCode: string): Promise<ActionResponse> {
         const playersIds = await redis.smembers(activePlayersIdsKey);
         if (!playersIds || playersIds.length === 0) {
             throw new Error("No players in the room");
+        }
+
+        const result = await checkDailyRateLimit(2);
+        if (!result.success) {
+            throw new Error("Daily game session limit has been met.")
         }
 
         const shuffledPlayers = [...playersIds];
