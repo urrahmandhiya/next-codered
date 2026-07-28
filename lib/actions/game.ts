@@ -23,7 +23,7 @@ export async function getGameState(roomCode: string): Promise<{ gameState: GameS
         if (isResolver && data.endGame === "inProgress") {
             const { nextPhase, phaseEndAtDuration } = phaseTransition(data);
 
-            const isNextRound = nextPhase === "day";
+            const isNextRound = nextPhase === "uptime";
             const isVoting = data.phase.endsWith("Vote");
 
             let votedPlayerIds: string[] = [];

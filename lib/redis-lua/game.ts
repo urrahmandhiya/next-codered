@@ -128,7 +128,7 @@ export async function writebackResolver(key: string, userId: string, updatedStat
         end
 
         -- clean lastDeadPlayerId after count phases
-        if updatedState.phase == 'day' or updatedState.phase == 'night' then
+        if updatedState.phase == 'uptime' or updatedState.phase == 'downtime' then
             redis.call('HSET', key, 
                 'lastDeadPlayerId', "none", 
                 'voterByCandidateJson', "{}"

@@ -7,12 +7,12 @@ describe('pure func in game.ts', () => {
         const baseDuration = { voteDuration: 30, discussDuration: 60 };
         describe('round 0', () => {
             test.each([
-                ['starting', 'night', 60],
-                ['night', 'day', 60],
-                ['day', 'hangVote', 30],
+                ['starting', 'downtime', 60],
+                ['downtime', 'uptime', 60],
+                ['uptime', 'hangVote', 30],
                 ['hangVote', 'hangVoteCount', 8],
                 ['hangVoteCount', 'hangVoteResult', 8],
-                ['hangVoteResult', 'night', 60],
+                ['hangVoteResult', 'downtime', 60],
             ])('%s -> %s (duration %i)', (phase, expectedNextPhase, expectedDuration) => {
                 const result = phaseTransition({ ...baseDuration, round: 0, phase });
                 expect(result.nextPhase).toBe(expectedNextPhase);
@@ -22,14 +22,14 @@ describe('pure func in game.ts', () => {
 
         describe('round 1', () => {
             test.each([
-                ['night', 'killVote', 30],
+                ['downtime', 'killVote', 30],
                 ['killVote', 'killVoteCount', 8],
                 ['killVoteCount', 'killVoteResult', 8],
-                ['killVoteResult', 'day', 60],
-                ['day', 'hangVote', 30],
+                ['killVoteResult', 'uptime', 60],
+                ['uptime', 'hangVote', 30],
                 ['hangVote', 'hangVoteCount', 8],
                 ['hangVoteCount', 'hangVoteResult', 8],
-                ['hangVoteResult', 'night', 60],
+                ['hangVoteResult', 'downtime', 60],
             ])('%s -> %s (duration %i)', (phase, expectedNextPhase, expectedDuration) => {
                 const result = phaseTransition({ ...baseDuration, round: 1, phase });
                 expect(result.nextPhase).toBe(expectedNextPhase);
@@ -39,7 +39,7 @@ describe('pure func in game.ts', () => {
 
         // lua return strings
         it("coerce duration string to number", () => {
-            const result = phaseTransition({ phase: 'day', round: 1, voteDuration: '30', discussDuration: '60' })
+            const result = phaseTransition({ phase: 'uptime', round: 1, voteDuration: '30', discussDuration: '60' })
             expect(result.phaseEndAtDuration).toBe(30);
         })
     });
@@ -95,15 +95,15 @@ describe('pure func in game.ts', () => {
     })
 
     describe('winningCondition()', () => {
-        it("good won during the day", () => {
-            const result = winningCondition({ goodSide: 2, badSide: 0 }, "day");
+        it("good won during the uptime", () => {
+            const result = winningCondition({ goodSide: 2, badSide: 0 }, "uptime");
             expect(result).toBe("goodEnd")
         });
-        it("bad won during the night", () => {
-            const result = winningCondition({ goodSide: 0, badSide: 1 }, "night");
+        it("bad won during the downtime", () => {
+            const result = winningCondition({ goodSide: 0, badSide: 1 }, "downtime");
             expect(result).toBe("badEnd")
         });
-        it("wait for day or night before changing endGame", () => {
+        it("wait for uptime or downtime before changing endGame", () => {
             const result = winningCondition({ goodSide: 0, badSide: 1 }, "killVoteCount");
             expect(result).toBe("inProgress")
         });

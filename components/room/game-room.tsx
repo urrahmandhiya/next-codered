@@ -148,19 +148,19 @@ export default function GameRoom({ roomCode }: { roomCode: string }) {
             <div className="text-center space-y-3">
               <h3 className="font-mono text-sm tracking-widest text-zinc-500 uppercase">IDENT_CONFIRMED</h3>
               <div className="space-y-1">
-                {role === "werewolf" ? (
+                {role === "hacker" ? (
                   <h2 className="text-4xl font-bold text-[#FF2A55] tracking-widest drop-shadow-[0_0_12px_rgba(255,42,85,0.4)] uppercase">
-                    WEREWOLF
+                    HACKER
                   </h2>
                 ) : (
                   <h2 className="text-4xl font-bold text-cyan tracking-widest text-glow-cyan uppercase">
-                    VILLAGER
+                    USER
                   </h2>
                 )}
               </div>
               <p className="text-xs text-zinc-400 font-mono max-w-70 mx-auto leading-relaxed">
-                {role === "werewolf"
-                  ? "Infiltrate the network. Eliminate the villagers under the cover of night."
+                {role === "hacker"
+                  ? "Infiltrate the network. Eliminate the users under the cover of downtime."
                   : "Analyze network activity. Identify and vote out the anomalies before you are compromised."}
               </p>
             </div>
@@ -186,18 +186,18 @@ export default function GameRoom({ roomCode }: { roomCode: string }) {
                 <span className="font-mono text-xs tracking-[0.3em] text-cyan/70 uppercase">
                   IDENT_CONFIRMED // CLASSIFIED
                 </span>
-                {role === "werewolf" ? (
+                {role === "hacker" ? (
                   <h2 className="text-5xl font-extrabold text-[#FF2A55] tracking-[0.15em] drop-shadow-[0_0_20px_rgba(255,42,85,0.5)] uppercase">
-                    WEREWOLF
+                    HACKER
                   </h2>
                 ) : (
                   <h2 className="text-5xl font-extrabold text-cyan tracking-[0.15em] text-glow-cyan uppercase">
-                    VILLAGER
+                    USER
                   </h2>
                 )}
                 <p className="text-sm text-zinc-300 font-mono max-w-md mx-auto leading-relaxed">
-                  {role === "werewolf"
-                    ? "Infiltrate the network. Eliminate the villagers under the cover of night."
+                  {role === "hacker"
+                    ? "Infiltrate the network. Eliminate the users under the cover of downtime."
                     : "Analyze network activity. Identify and vote out the anomalies before you are compromised."}
                 </p>
               </div>
@@ -212,16 +212,16 @@ export default function GameRoom({ roomCode }: { roomCode: string }) {
               </div>
 
               <div className="space-y-4 font-mono text-xs text-zinc-400 leading-relaxed">
-                {role === "werewolf" ? (
+                {role === "hacker" ? (
                   <>
-                    <p className="text-rose-400/90 font-semibold">• PRIMARY: Covert elimination during night downtime.</p>
-                    <p>• SECONDARY: Blend into discussions during day vote.</p>
+                    <p className="text-rose-400/90 font-semibold">• PRIMARY: Covert elimination during downtime.</p>
+                    <p>• SECONDARY: Blend into discussions during uptime vote.</p>
                     <p>• CAUTION: Avoid suspicious voting patterns.</p>
                   </>
                 ) : (
                   <>
                     <p className="text-cyan font-semibold">• PRIMARY: Solve downtime signal quests to earn clues.</p>
-                    <p>• SECONDARY: Track vote anomalies during day phase.</p>
+                    <p>• SECONDARY: Track vote anomalies during uptime phase.</p>
                     <p>• CAUTION: Hostile entities remain hidden in room.</p>
                   </>
                 )}
@@ -293,7 +293,7 @@ export default function GameRoom({ roomCode }: { roomCode: string }) {
           isUserBadSide && isUserAlive ? (
             <div className="space-y-3">
               <span className="text-xs text-rose-400 uppercase tracking-wider font-bold block">
-                Cast Target (Silent Protocol - Werewolf Target Pick)
+                Cast Target (Silent Protocol - Hacker Target Pick)
               </span>
               <VotePlayerList
                 voteType="killVote"
