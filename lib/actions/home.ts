@@ -6,7 +6,6 @@ import { redirect } from "next/navigation";
 import { cookies } from "next/headers";
 import { revalidatePath } from "next/cache";
 import { ActionResponse } from "../definitions";
-import { checkDailyRateLimit } from "@/lib/ratelimit";
 
 const redis = Redis.fromEnv();
 const INITIAL_ROOM_DEFAULTS = {
@@ -60,20 +59,6 @@ export async function createRoom(prevState: ActionResponse, formData: FormData):
         discussDuration: INITIAL_ROOM_DEFAULTS.DISCUSS_DURATION,
         voteDuration: INITIAL_ROOM_DEFAULTS.VOTE_DURATION,
     };
-
-    try {
-        const result = await checkDailyRateLimit(1);
-        if (!result.success) {
-            throw new Error("Daily room creation limit has been met.")
-        }
-    } catch (error) {
-        if (error instanceof Error) {
-            console.log(error.message)
-            return {success: false, error: error.message}
-        }
-        console.log(error)
-        return {success: false, error: String(error)}
-    }
 
     try {
         const p = redis.pipeline();

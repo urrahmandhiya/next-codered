@@ -24,13 +24,6 @@ export default function Page() {
                 </h2>
 
                 <div className="flex flex-col w-full gap-4 justify-center items-center">
-                    <Link
-                        href="/dev/ratelimit"
-                        className="flex items-center justify-center w-full max-w-[18rem] h-12 bg-[#0A050B]/80 backdrop-blur-md border border-rose-900/60 text-rose-500 hover:bg-rose-950/40 hover:text-rose-400 hover:border-rose-700 rounded-full transition-all uppercase tracking-widest text-xs font-semibold shadow-[0_0_15px_rgba(255,42,85,0.15)] cursor-pointer text-center"
-                    >
-                        Check Ratelimit
-                        <ArrowRight className="w-4 h-4 ml-2" />
-                    </Link>
                     <Button
                         onClick={() => goToWaitingRoom()}
                         className="flex items-center justify-center w-full max-w-[18rem] h-12 bg-[#0A050B]/80 backdrop-blur-md border border-green-900/60 text-green-500 hover:bg-green-950/40 hover:text-green-400 hover:border-green-700 rounded-full transition-all uppercase tracking-widest text-xs font-semibold shadow-[0_0_15px_rgba(220,38,38,0.15)]"
