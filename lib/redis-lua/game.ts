@@ -142,6 +142,11 @@ export async function writebackResolver(key: string, userId: string, updatedStat
             'voterByCandidateJson', updatedState.voterByCandidateJson,
             'endGame', updatedState.endGame
         )
+
+        -- reset each TTL keys (room hash, activeId set, deadId set)
+        redis.call('EXPIRE', key, (tonumber(updatedState.phaseEndAtDuration) + 120))
+        redis.call('EXPIRE', activePlayersIdsKey, (tonumber(updatedState.phaseEndAtDuration) + 120))
+        redis.call('EXPIRE', deadPlayersIdsKey, (tonumber(updatedState.phaseEndAtDuration) + 120))
     end
     `;
 

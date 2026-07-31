@@ -44,6 +44,7 @@ export async function getGameState(roomCode: string): Promise<{ gameState: GameS
                 voterByCandidateJson: JSON.stringify(voterByCandidate),
                 endGame: endGame,
                 resolvingToken: data.resolvingEndAt,
+                phaseEndAtDuration,
             };
 
             await writebackResolver(key, userId, updatedState);

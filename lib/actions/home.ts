@@ -13,7 +13,7 @@ const INITIAL_ROOM_DEFAULTS = {
     PLAYERS_IN_ROOM: 1,
     DISCUSS_DURATION: 15,
     VOTE_DURATION: 15,
-    KEY_TTL: 3600,
+    KEY_TTL: 300,
 }
 
 async function generateUniqueRoomCode(): Promise<string> {
