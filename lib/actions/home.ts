@@ -14,6 +14,7 @@ const INITIAL_ROOM_DEFAULTS = {
     DISCUSS_DURATION: 15,
     VOTE_DURATION: 15,
     KEY_TTL: 300,
+    MAX_CONCURRENT_ROOM: 3,
 }
 
 async function generateUniqueRoomCode(): Promise<string> {
@@ -60,7 +61,35 @@ export async function createRoom(prevState: ActionResponse, formData: FormData):
         voteDuration: INITIAL_ROOM_DEFAULTS.VOTE_DURATION,
     };
 
+    const lock = new Lock({
+        id: "lock:createRoom",
+        redis,
+        lease: 5000,
+    });
+
+    let isLockAcquired = false;
     try {
+        isLockAcquired = await lock.acquire();
+        if (!isLockAcquired) {
+            return { success: false, error: "Unable to create room due to lock conflict. Please try again." };
+        }
+
+        let cursor = "0";
+        const stringKeys: string[] = [];
+        do {
+            const [nextCursor, keys] = await redis.scan(cursor, {
+                match: "room:*",
+                type: "hash"
+            });
+            stringKeys.push(...keys);
+            cursor = nextCursor;
+        } while (cursor !== "0");
+        console.log("[Scanned Keys]", stringKeys);
+
+        if (stringKeys.length >= INITIAL_ROOM_DEFAULTS.MAX_CONCURRENT_ROOM) {
+            return { success: false, error: "Unable to create more room due to max concurrent room. Please try again later." };
+        }
+
         const p = redis.pipeline();
         p.sadd(`room:${roomCode}:activePlayersIds`, hostId);
         p.sadd(`room:${roomCode}:deadPlayersIds`, '__EMPTY__');
@@ -88,6 +117,10 @@ export async function createRoom(prevState: ActionResponse, formData: FormData):
         }
         console.error("[createRoom] Unknown Error:", error);
         return { success: false, error: String(error) };
+    } finally {
+        if (isLockAcquired) {
+            await lock.release();
+        }
     }
     console.timeEnd("createRoom total");
     console.log("[createRoom] Success, redirecting to /room/", roomCode);
