@@ -10,15 +10,15 @@ import { InGamePlayer } from "@/lib/definitions";
 type PreviewSubPhase = "vote" | "result";
 
 const MOCK_PLAYERS: InGamePlayer[] = [
-  { id: "1", name: "Alice", status: "alive", role: "villager", side: "good" },
-  { id: "2", name: "Bob", status: "alive", role: "villager", side: "good" },
-  { id: "3", name: "Charlie", status: "alive", role: "werewolf", side: "bad" },
-  { id: "4", name: "Dave", status: "dead", role: "villager", side: "good" },
+  { id: "1", name: "Alice", status: "alive", role: "user", side: "good" },
+  { id: "2", name: "Bob", status: "alive", role: "user", side: "good" },
+  { id: "3", name: "Charlie", status: "alive", role: "hacker", side: "bad" },
+  { id: "4", name: "Dave", status: "dead", role: "user", side: "good" },
 ];
 
 export default function DevKillVoteUiPage() {
   const [subPhase, setSubPhase] = useState<PreviewSubPhase>("vote");
-  const [isWerewolfPOV, setIsWerewolfPOV] = useState<boolean>(true);
+  const [isHackerPOV, setIsHackerPOV] = useState<boolean>(true);
   const [voteValue, setVoteValue] = useState<string>("none");
   const [timeLeft, setTimeLeft] = useState<number>(15);
 
@@ -48,7 +48,7 @@ export default function DevKillVoteUiPage() {
     id: "1",
     name: "Alice",
     status: "dead",
-    role: "villager",
+    role: "user",
     side: "good",
   };
 
@@ -65,7 +65,7 @@ export default function DevKillVoteUiPage() {
             SUB_PHASE: {subPhase}
           </span>
           <span className="text-slate-400">
-            POV: {isWerewolfPOV ? "WEREWOLF" : "VILLAGER"}
+            POV: {isHackerPOV ? "HACKER" : "USER"}
           </span>
         </div>
         <div className="flex gap-1">
@@ -77,7 +77,7 @@ export default function DevKillVoteUiPage() {
             <RefreshCw className="w-3.5 h-3.5" />
           </button>
           <button
-            onClick={() => setIsWerewolfPOV((prev) => !prev)}
+            onClick={() => setIsHackerPOV((prev) => !prev)}
             className="p-1 hover:bg-rose-500/10 rounded-lg text-rose-500 transition-colors"
             title="Switch POV"
           >
@@ -104,7 +104,7 @@ export default function DevKillVoteUiPage() {
           round={1}
           voteValue={voteValue}
           onVote={handleVote}
-          isUserBadSide={isWerewolfPOV}
+          isUserBadSide={isHackerPOV}
           isUserAlive={true}
         />
       ) : (
@@ -114,7 +114,7 @@ export default function DevKillVoteUiPage() {
           voterByCandidate={mockVoterBreakdown}
           timeLeft={timeLeft}
           players={MOCK_PLAYERS}
-          isUserBadSide={isWerewolfPOV}
+          isUserBadSide={isHackerPOV}
           isUserAlive={true}
         />
       )}

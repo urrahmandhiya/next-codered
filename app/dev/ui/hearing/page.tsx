@@ -11,10 +11,10 @@ import { InGamePlayer } from "@/lib/definitions";
 type PreviewSubPhase = "vote" | "count" | "result_terminated" | "result_consensus";
 
 const MOCK_PLAYERS: InGamePlayer[] = [
-  { id: "1", name: "Alice", status: "alive", role: "villager", side: "good" },
-  { id: "2", name: "Bob", status: "alive", role: "villager", side: "good" },
-  { id: "3", name: "Charlie", status: "alive", role: "werewolf", side: "bad" },
-  { id: "4", name: "Dave", status: "dead", role: "villager", side: "good" },
+  { id: "1", name: "Alice", status: "alive", role: "user", side: "good" },
+  { id: "2", name: "Bob", status: "alive", role: "user", side: "good" },
+  { id: "3", name: "Charlie", status: "alive", role: "hacker", side: "bad" },
+  { id: "4", name: "Dave", status: "dead", role: "user", side: "good" },
 ];
 
 export default function DevHearingUiPage() {
@@ -53,7 +53,7 @@ export default function DevHearingUiPage() {
     id: "3",
     name: "Charlie",
     status: "dead",
-    role: "werewolf",
+    role: "hacker",
     side: "bad",
   };
 

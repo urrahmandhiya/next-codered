@@ -7,10 +7,10 @@ import EndScreenPhase from "@/components/room/end-screen/end-screen-phase";
 import { InGamePlayer } from "@/lib/definitions";
 
 const MOCK_PLAYERS: InGamePlayer[] = [
-  { id: "1", name: "Alice", status: "dead", role: "villager", side: "good" },
-  { id: "2", name: "Bob", status: "alive", role: "villager", side: "good" },
-  { id: "3", name: "Charlie", status: "alive", role: "werewolf", side: "bad" },
-  { id: "4", name: "Dave", status: "dead", role: "werewolf", side: "bad" },
+  { id: "1", name: "Alice", status: "dead", role: "user", side: "good" },
+  { id: "2", name: "Bob", status: "alive", role: "user", side: "good" },
+  { id: "3", name: "Charlie", status: "alive", role: "hacker", side: "bad" },
+  { id: "4", name: "Dave", status: "dead", role: "hacker", side: "bad" },
 ];
 
 export default function DevEndScreenUiPage() {

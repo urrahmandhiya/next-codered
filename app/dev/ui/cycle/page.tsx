@@ -8,6 +8,7 @@ import HangVotePhase from "@/components/room/hearing-phase/hang-vote-phase";
 import HangVoteCountPhase from "@/components/room/hearing-phase/hang-vote-count-phase";
 import SecurityClearanceResultPhase from "@/components/room/hearing-phase/hang-vote-result-phase";
 import KillVotePhase from "@/components/room/kill-vote-phase/kill-vote-phase";
+import KillVoteResultPhase from "@/components/room/kill-vote-phase/kill-vote-result-phase";
 import DowntimePhase from "@/components/room/downtime-phase/downtime-phase";
 import DowntimeBadPhase from "@/components/room/downtime-phase/downtime-bad-phase";
 import IncidentReportPhase from "@/components/room/incident-report/incident-report-phase";
@@ -33,22 +34,24 @@ const CYCLE_PHASES: PhaseStep[] = [
   { name: "Hearing Tabulation [L2]", duration: 3, round: 2 },
   { name: "Hearing Verdict Result [L2]", duration: 5, round: 2 },
   { name: "Downtime (Bad Side Target Pick) [L2]", duration: 10, round: 2 },
+  { name: "Silent Protocol Tabulation [L2]", duration: 3, round: 2 },
+  { name: "Silent Protocol Result [L2]", duration: 5, round: 2 },
   { name: "Incident Report [L2]", duration: 6, round: 2 },
   { name: "End Game Screen", duration: 9999, round: 2 },
 ];
 
 const MOCK_PLAYERS_ROUND_1: InGamePlayer[] = [
-  { id: "1", name: "Alice", status: "alive", role: "villager", side: "good" },
-  { id: "2", name: "Bob", status: "alive", role: "villager", side: "good" },
-  { id: "3", name: "Charlie", status: "alive", role: "werewolf", side: "bad" },
-  { id: "4", name: "Dave", status: "dead", role: "villager", side: "good" },
+  { id: "1", name: "Alice", status: "alive", role: "user", side: "good" },
+  { id: "2", name: "Bob", status: "alive", role: "user", side: "good" },
+  { id: "3", name: "Charlie", status: "alive", role: "hacker", side: "bad" },
+  { id: "4", name: "Dave", status: "dead", role: "user", side: "good" },
 ];
 
 const MOCK_PLAYERS_ROUND_2: InGamePlayer[] = [
-  { id: "1", name: "Alice", status: "dead", role: "villager", side: "good" },
-  { id: "2", name: "Bob", status: "alive", role: "villager", side: "good" },
-  { id: "3", name: "Charlie", status: "alive", role: "werewolf", side: "bad" },
-  { id: "4", name: "Dave", status: "dead", role: "villager", side: "good" },
+  { id: "1", name: "Alice", status: "dead", role: "user", side: "good" },
+  { id: "2", name: "Bob", status: "alive", role: "user", side: "good" },
+  { id: "3", name: "Charlie", status: "alive", role: "hacker", side: "bad" },
+  { id: "4", name: "Dave", status: "dead", role: "user", side: "good" },
 ];
 
 export default function DevUiCyclePage() {
@@ -232,7 +235,23 @@ export default function DevUiCyclePage() {
         />
       )}
 
-      {(currentStepIndex === 6 || currentStepIndex === 12) && (
+      {currentStepIndex === 12 && (
+        <HangVoteCountPhase round={currentPhase.round} />
+      )}
+
+      {currentStepIndex === 13 && (
+        <KillVoteResultPhase
+          round={currentPhase.round}
+          lastDeadPlayer={mockKillPlayer}
+          voterByCandidate={{ "1": ["Charlie"] }}
+          timeLeft={timeLeft}
+          players={activePlayers}
+          isUserBadSide={true}
+          isUserAlive={true}
+        />
+      )}
+
+      {(currentStepIndex === 6 || currentStepIndex === 14) && (
         <IncidentReportPhase
           round={currentPhase.round}
           killDeadPlayer={mockKillPlayer}
@@ -240,7 +259,7 @@ export default function DevUiCyclePage() {
         />
       )}
 
-      {currentStepIndex === 13 && (
+      {currentStepIndex === 15 && (
         <EndScreenPhase
           endGame="goodEnd"
           round={currentPhase.round}
