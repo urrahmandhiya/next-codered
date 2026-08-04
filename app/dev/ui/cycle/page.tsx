@@ -115,7 +115,7 @@ export default function DevUiCyclePage() {
       <div className="fixed top-4 right-4 z-50 flex items-center gap-3 bg-slate-950/85 border border-cyan/20 px-4 py-2.5 rounded-2xl backdrop-blur-md shadow-2xl font-mono text-xs">
         <div className="flex flex-col">
           <span className="text-[10px] text-slate-500 uppercase tracking-widest">PROTOTYPE LOOP RUNNER</span>
-          <span className="text-cyan font-bold tracking-wider truncate max-w-[200px]">
+          <span className="text-cyan font-bold tracking-wider truncate max-w-50">
             {currentStepIndex + 1}/{CYCLE_PHASES.length}: {currentPhase.name}
           </span>
         </div>
