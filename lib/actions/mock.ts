@@ -54,10 +54,10 @@ export async function goToWaitingRoom() {
     p.sadd(`room:${roomCode}:deadPlayersIds`, '__EMPTY__');
     p.hset(`room:${roomCode}`, { ...initialRoomState, ...playersState, ...rolesState});
 
-    // keys are set to expire in one hour
-    p.expire(`room:${roomCode}`, 3600)
-    p.expire(`room:${roomCode}:activePlayersIds`, 3600)
-    p.expire(`room:${roomCode}:deadPlayersIds`, 3600)
+    // keys are set to expire in five minutes
+    p.expire(`room:${roomCode}`, 300)
+    p.expire(`room:${roomCode}:activePlayersIds`, 300)
+    p.expire(`room:${roomCode}:deadPlayersIds`, 300)
 
     try {
         await p.exec();
