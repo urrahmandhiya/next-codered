@@ -1,15 +1,16 @@
 "use client";
 
-import useSWR from "swr";
+import useSWR, { Fetcher } from "swr";
 import { useEffect, useRef, useState, useCallback } from "react";
-import { updateGameState } from "@/lib/data";
 import { getPlayerVote } from "@/lib/actions/game";
-import { InGamePlayer } from "@/lib/definitions";
+import { GameState, InGamePlayer } from "@/lib/definitions";
 import { Card, CardContent } from "../ui/card";
 import VotePlayerList from "../game/vote-player-list";
 import PhaseLayout from "@/components/phase-layout";
 import { useRouter } from "next/navigation";
 import { User } from "lucide-react";
+
+const fetcher: Fetcher<{ gameState: GameState, activePlayersIds: string[] }> = (url: string) => fetch(url).then(res => res.json())
 
 export default function GameRoom({ roomCode }: { roomCode: string }) {
   const router = useRouter();
@@ -17,12 +18,12 @@ export default function GameRoom({ roomCode }: { roomCode: string }) {
   const [voteValue, setVoteValue] = useState("none");
   const isPollingRef = useRef(false);
 
-  const { data, mutate } = useSWR(
-    `gameState-${roomCode}`,
-    () => updateGameState(roomCode),
+  const { data, mutate } = useSWR(`/api/game/${roomCode}`, fetcher,
     {
-      refreshInterval: (currentData) =>
-        isPollingRef.current && currentData?.endGame === "inProgress" ? 2000 : 0,
+      refreshInterval: (currentData) => {
+        const gameData = currentData?.gameState;
+        return isPollingRef.current && gameData?.endGame === "inProgress" ? 2000 : 0;
+      },
       revalidateOnFocus: false,
       revalidateOnReconnect: false,
       revalidateIfStale: false,
@@ -30,20 +31,22 @@ export default function GameRoom({ roomCode }: { roomCode: string }) {
     }
   );
 
-  const user = data?.user;
+  const gameData = data?.gameState;
+
+  const user = gameData?.user;
   const role = user?.role;
-  const serverPhaseEndAt = data?.phaseEndAt;
-  const phase = data?.phase;
-  const round = data?.round;
-  const players: InGamePlayer[] = data?.players ?? [];
+  const serverPhaseEndAt = gameData?.phaseEndAt;
+  const phase = gameData?.phase;
+  const round = gameData?.round;
+  const players: InGamePlayer[] = gameData?.players ?? [];
   const isHangVoting = phase === "hangVote";
   const isKillVoting = phase === "killVote";
   const isUserBadSide = user?.side === "bad";
   const isUserAlive = user?.status === "alive";
   const isCounting = phase?.endsWith("Count");
-  const voterByCandidate: Record<string, string[]> = data?.voterByCandidate ?? {};
-  const lastDeadPlayer: InGamePlayer | undefined = players.find((p) => p.id === data?.lastDeadPlayerId);
-  const isStillPlaying = data?.endGame === "inProgress";
+  const voterByCandidate: Record<string, string[]> = gameData?.voterByCandidate ?? {};
+  const lastDeadPlayer: InGamePlayer | undefined = players.find((p) => p.id === gameData?.lastDeadPlayerId);
+  const isStillPlaying = gameData?.endGame === "inProgress";
 
   useEffect(() => {
     setVoteValue("none");
@@ -99,7 +102,7 @@ export default function GameRoom({ roomCode }: { roomCode: string }) {
       <Card className="w-full max-w-md bg-[#0A050B]/80 border-slate-800 text-slate-100 p-6 backdrop-blur-md shadow-2xl rounded-3xl font-mono">
         <CardContent className="space-y-4 p-0">
           <h2 className="text-xl font-bold text-center text-cyan-400">
-            GAME OVER // {data?.endGame === "goodEnd" ? "GOOD SIDE WON" : "BAD SIDE WON"}
+            GAME OVER // {gameData?.endGame === "goodEnd" ? "GOOD SIDE WON" : "BAD SIDE WON"}
           </h2>
           <div className="space-y-2 text-sm border-t border-slate-800/80 pt-4">
             <p>User: {user?.name} ({user?.status})</p>

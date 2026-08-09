@@ -9,16 +9,15 @@ import { useState, useTransition } from "react";
 import { Spinner } from "../ui/spinner";
 import { Alert, AlertTitle } from "../ui/alert";
 import { AlertCircleIcon, Copy, Settings, Check, LogOut, X } from "lucide-react";
-import { Player } from "@/lib/definitions";
-import { updateRoomState } from "@/lib/data";
-import useSWR from "swr";
+import { Player, Room } from "@/lib/definitions";
+import useSWR, { Fetcher } from "swr";
 import { useRouter } from "next/navigation";
-import { useUserCookies } from "./cookie-provider";
 import PlayerNameChange from "./player-name.change";
 import { toast } from "sonner";
 import { Separator } from "../ui/separator";
 
 const isDev = process.env.NEXT_PUBLIC_MODE === "DEV";
+const fetcher: Fetcher<{ room: Room, userId: string }> = (url: string) => fetch(url).then(res => res.json())
 
 export default function WaitingRoom({ roomCode }: { roomCode: string }) {
     const [isPending, startTransition] = useTransition();
@@ -28,22 +27,23 @@ export default function WaitingRoom({ roomCode }: { roomCode: string }) {
     const [copied, setCopied] = useState(false);
     const router = useRouter();
 
-    const { data, isLoading, mutate } = useSWR(roomCode, updateRoomState, {
-        refreshInterval: 5000,
+    const { data, isLoading, mutate } = useSWR(`/api/room/${roomCode}`, fetcher, {
+        refreshInterval: isDev ? 0 : 5000,
         revalidateOnFocus: false,
         revalidateOnReconnect: false,
         revalidateIfStale: false,
     });
 
-    const userId = useUserCookies();
+    const userId = data?.userId;
+    const roomData = data?.room;
 
-    const playersInRoom = data?.playersInRoom || 0;
-    const maxPlayersInRoom = data?.maxPlayersInRoom || 12;
-    const players = (data?.players as Player[]) || [];
-    const isHost = data?.roomHostId === userId;
-    const roles = data?.roles || [];
-    const discussDuration = data?.discussDuration || 0;
-    const voteDuration = data?.voteDuration || 0;
+    const playersInRoom = roomData?.playersInRoom || 0;
+    const maxPlayersInRoom = roomData?.maxPlayersInRoom || 12;
+    const players = (roomData?.players as Player[]) || [];
+    const isHost = roomData?.roomHostId === userId;
+    const roles = roomData?.roles || [];
+    const discussDuration = roomData?.discussDuration || 0;
+    const voteDuration = roomData?.voteDuration || 0;
 
     const handleStartGame = () => {
         startTransition(async () => {
@@ -94,7 +94,7 @@ export default function WaitingRoom({ roomCode }: { roomCode: string }) {
 
     return (
         <div className="flex flex-col items-center justify-between w-full h-full max-w-2xl md:max-w-5xl px-4 py-6 md:py-12 overflow-hidden">
-            
+
             {/* Top Section */}
             <div className="flex flex-col items-center gap-6 md:gap-10 w-full">
                 {/* Header */}
@@ -105,7 +105,7 @@ export default function WaitingRoom({ roomCode }: { roomCode: string }) {
                 </div>
 
                 {/* Room Code Card */}
-                <button 
+                <button
                     onClick={copyCode}
                     className="group relative flex flex-col items-center justify-center gap-3 px-12 py-6 md:px-32 md:py-8 w-full md:w-auto md:min-w-125 rounded-[2.5rem] md:rounded-2xl bg-black border-2 border-cyan/40 border-glow-cyan hover:border-cyan/60 transition-all active:scale-[0.98]"
                 >
@@ -135,7 +135,7 @@ export default function WaitingRoom({ roomCode }: { roomCode: string }) {
                         </span>
                     </div>
                     <Separator className="bg-zinc-800/50" />
-                    
+
                     {alertMessage &&
                         <Alert className="bg-destructive/10 border-destructive/20 text-destructive mb-4" variant="destructive">
                             <AlertCircleIcon className="size-4" />
@@ -162,15 +162,15 @@ export default function WaitingRoom({ roomCode }: { roomCode: string }) {
                     >
                         <LogOut className="size-6 md:size-7" />
                     </Button>
-                    
-                    <Button 
-                        onClick={handleStartGame} 
+
+                    <Button
+                        onClick={handleStartGame}
                         disabled={isPending || !isHost || isStarting}
                         className="flex-1 md:flex-none h-16 md:h-20 px-12 md:w-full md:max-w-xl rounded-full md:rounded-2xl bg-cyan text-black font-bold text-lg md:text-xl hover:bg-cyan/90 border-glow-cyan disabled:opacity-50 disabled:bg-cyan/30 transition-all shadow-[0_0_30px_var(--color-cyan-glow)] active:scale-95"
                     >
                         {isPending || isStarting ? <Spinner className="text-black" /> : "START GAME"}
                     </Button>
-                    
+
                     <Button
                         variant="outline"
                         size="icon"
@@ -184,11 +184,11 @@ export default function WaitingRoom({ roomCode }: { roomCode: string }) {
 
             {/* Settings Overlay/Modal Logic */}
             {showSettings && (
-                <div 
+                <div
                     className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm"
                     onClick={() => setShowSettings(false)}
                 >
-                    <div 
+                    <div
                         className="w-full flex flex-col gap-8 max-w-lg md:max-w-2xl bg-black/80 backdrop-blur-xl border border-cyan/30 rounded-3xl p-6 md:p-10 shadow-[0_0_40px_rgba(6,182,212,0.15)] border-glow-cyan overflow-y-auto max-h-[90vh]"
                         onClick={(e) => e.stopPropagation()}
                     >
@@ -198,16 +198,16 @@ export default function WaitingRoom({ roomCode }: { roomCode: string }) {
                                 <X className="size-6 md:size-7" />
                             </Button>
                         </div>
-                        
+
                         <PlayerNameChange roomCode={roomCode} players={players} />
-                        
+
                         {isHost && (
                             <>
                                 <Separator className="bg-cyan/20" />
-                                <RoomSettings 
-                                    maxPlayersInRoom={maxPlayersInRoom} 
-                                    roomCode={roomCode} 
-                                    roles={roles} 
+                                <RoomSettings
+                                    maxPlayersInRoom={maxPlayersInRoom}
+                                    roomCode={roomCode}
+                                    roles={roles}
                                     discussDuration={discussDuration}
                                     voteDuration={voteDuration}
                                 />
