@@ -1,13 +1,14 @@
 "use client";
 
-import useSWR from "swr";
+import useSWR, { Fetcher } from "swr";
 import { useEffect, useRef, useState, useCallback, useMemo } from "react";
-import { updateGameState } from "@/lib/data";
 import { getPlayerVote } from "@/lib/actions/game";
-import { InGamePlayer } from "@/lib/definitions";
+import { GameState, InGamePlayer } from "@/lib/definitions";
 import PhaseLayout from "@/components/phase-layout";
 import { useRouter } from "next/navigation";
 import { User } from "lucide-react";
+
+const fetcher: Fetcher<{ gameState: GameState, activePlayersIds: string[] }> = (url: string) => fetch(url).then(res => res.json())
 
 import UptimePhase from "@/components/room/uptime-phase/uptime-phase";
 import HangVotePhase from "@/components/room/hearing-phase/hang-vote-phase";
@@ -25,12 +26,12 @@ export default function GameRoom({ roomCode }: { roomCode: string }) {
   const [voteValue, setVoteValue] = useState("none");
   const isPollingRef = useRef(false);
 
-  const { data, mutate } = useSWR(
-    `gameState-${roomCode}`,
-    () => updateGameState(roomCode),
+  const { data, mutate } = useSWR(`/api/game/${roomCode}`, fetcher,
     {
-      refreshInterval: (currentData) =>
-        isPollingRef.current && currentData?.endGame === "inProgress" ? 2000 : 0,
+      refreshInterval: (currentData) => {
+        const gameData = currentData?.gameState;
+        return isPollingRef.current && gameData?.endGame === "inProgress" ? 2000 : 0;
+      },
       revalidateOnFocus: false,
       revalidateOnReconnect: false,
       revalidateIfStale: false,
@@ -38,20 +39,21 @@ export default function GameRoom({ roomCode }: { roomCode: string }) {
     }
   );
 
-  const user = data?.user;
+  const gameData = data?.gameState;
+
+  const user = gameData?.user;
   const role = user?.role;
-  const serverPhaseEndAt = data?.phaseEndAt;
-  const phase = data?.phase;
-  const round = data?.round ?? 1;
-  const players: InGamePlayer[] = data?.players ?? [];
+  const serverPhaseEndAt = gameData?.phaseEndAt;
+  const phase = gameData?.phase;
+  const round = gameData?.round ?? 1;
+  const players: InGamePlayer[] = gameData?.players ?? [];
   const allPlayers = useMemo(() => (user ? [user, ...players] : players), [user, players]);
 
   const isUserBadSide = user?.side === "bad";
   const isUserAlive = user?.status === "alive";
-  const voterByCandidate: Record<string, string[]> = data?.voterByCandidate ?? {};
-  const lastDeadPlayer: InGamePlayer | null =
-    players.find((p) => p.id === data?.lastDeadPlayerId) ?? null;
-  const isStillPlaying = data?.endGame === "inProgress";
+  const voterByCandidate: Record<string, string[]> = gameData?.voterByCandidate ?? {};
+  const lastDeadPlayer: InGamePlayer | null = players.find((p) => p.id === gameData?.lastDeadPlayerId) ?? null;
+  const isStillPlaying = gameData?.endGame === "inProgress";
 
   useEffect(() => {
     setVoteValue("none");
@@ -105,7 +107,7 @@ export default function GameRoom({ roomCode }: { roomCode: string }) {
   if (!isStillPlaying) {
     return (
       <EndScreenPhase
-        endGame={data?.endGame ?? "goodEnd"}
+        endGame={gameData?.endGame ?? "goodEnd"}
         round={round}
         players={allPlayers}
         onReturnToLobby={() => router.push("/")}
@@ -231,7 +233,6 @@ export default function GameRoom({ roomCode }: { roomCode: string }) {
 
   switch (phase) {
     case "uptime":
-    case "day":
       return (
         <UptimePhase
           round={round}
@@ -267,7 +268,6 @@ export default function GameRoom({ roomCode }: { roomCode: string }) {
       );
 
     case "downtime":
-    case "night":
       return (
         <DowntimePhase
           roomCode={roomCode}
