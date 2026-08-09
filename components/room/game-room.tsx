@@ -1,16 +1,24 @@
 "use client";
 
 import useSWR, { Fetcher } from "swr";
-import { useEffect, useRef, useState, useCallback } from "react";
+import { useEffect, useRef, useState, useCallback, useMemo } from "react";
 import { getPlayerVote } from "@/lib/actions/game";
 import { GameState, InGamePlayer } from "@/lib/definitions";
-import { Card, CardContent } from "../ui/card";
-import VotePlayerList from "../game/vote-player-list";
 import PhaseLayout from "@/components/phase-layout";
 import { useRouter } from "next/navigation";
 import { User } from "lucide-react";
 
 const fetcher: Fetcher<{ gameState: GameState, activePlayersIds: string[] }> = (url: string) => fetch(url).then(res => res.json())
+
+import UptimePhase from "@/components/room/uptime-phase/uptime-phase";
+import HangVotePhase from "@/components/room/hearing-phase/hang-vote-phase";
+import HangVoteCountPhase from "@/components/room/hearing-phase/hang-vote-count-phase";
+import SecurityClearanceResultPhase from "@/components/room/hearing-phase/hang-vote-result-phase";
+import DowntimePhase from "@/components/room/downtime-phase/downtime-phase";
+import KillVotePhase from "@/components/room/kill-vote-phase/kill-vote-phase";
+import KillVoteResultPhase from "@/components/room/kill-vote-phase/kill-vote-result-phase";
+import IncidentReportPhase from "@/components/room/incident-report/incident-report-phase";
+import EndScreenPhase from "@/components/room/end-screen/end-screen-phase";
 
 export default function GameRoom({ roomCode }: { roomCode: string }) {
   const router = useRouter();
@@ -37,15 +45,14 @@ export default function GameRoom({ roomCode }: { roomCode: string }) {
   const role = user?.role;
   const serverPhaseEndAt = gameData?.phaseEndAt;
   const phase = gameData?.phase;
-  const round = gameData?.round;
+  const round = gameData?.round ?? 1;
   const players: InGamePlayer[] = gameData?.players ?? [];
-  const isHangVoting = phase === "hangVote";
-  const isKillVoting = phase === "killVote";
+  const allPlayers = useMemo(() => (user ? [user, ...players] : players), [user, players]);
+
   const isUserBadSide = user?.side === "bad";
   const isUserAlive = user?.status === "alive";
-  const isCounting = phase?.endsWith("Count");
   const voterByCandidate: Record<string, string[]> = gameData?.voterByCandidate ?? {};
-  const lastDeadPlayer: InGamePlayer | undefined = players.find((p) => p.id === gameData?.lastDeadPlayerId);
+  const lastDeadPlayer: InGamePlayer | null = players.find((p) => p.id === gameData?.lastDeadPlayerId) ?? null;
   const isStillPlaying = gameData?.endGame === "inProgress";
 
   useEffect(() => {
@@ -99,33 +106,12 @@ export default function GameRoom({ roomCode }: { roomCode: string }) {
 
   if (!isStillPlaying) {
     return (
-      <Card className="w-full max-w-md bg-[#0A050B]/80 border-slate-800 text-slate-100 p-6 backdrop-blur-md shadow-2xl rounded-3xl font-mono">
-        <CardContent className="space-y-4 p-0">
-          <h2 className="text-xl font-bold text-center text-cyan-400">
-            GAME OVER // {gameData?.endGame === "goodEnd" ? "GOOD SIDE WON" : "BAD SIDE WON"}
-          </h2>
-          <div className="space-y-2 text-sm border-t border-slate-800/80 pt-4">
-            <p>User: {user?.name} ({user?.status})</p>
-            <p>Role: {user?.role}</p>
-            <p>Total Rounds: {round}</p>
-          </div>
-          <div className="space-y-1 border-t border-slate-800/80 pt-4">
-            <p className="text-xs text-slate-400 uppercase tracking-widest font-bold">Player Roster</p>
-            {players.map((p) => (
-              <div key={p.id} className="flex justify-between text-xs py-1 border-b border-slate-800/40">
-                <span>{p.name} ({p.status})</span>
-                <span className="text-cyan-400">{p.role}</span>
-              </div>
-            ))}
-          </div>
-          <button
-            onClick={() => router.push("/")}
-            className="w-full mt-4 py-2.5 bg-slate-900 hover:bg-slate-800 border border-slate-700/60 rounded-xl text-xs font-semibold uppercase tracking-wider text-slate-200 transition-all"
-          >
-            Return to Home
-          </button>
-        </CardContent>
-      </Card>
+      <EndScreenPhase
+        endGame={gameData?.endGame ?? "goodEnd"}
+        round={round}
+        players={allPlayers}
+        onReturnToLobby={() => router.push("/")}
+      />
     );
   }
 
@@ -245,112 +231,97 @@ export default function GameRoom({ roomCode }: { roomCode: string }) {
     );
   }
 
-  return (
-    <Card className="w-full max-w-md bg-[#0A050B]/80 border-slate-800 text-slate-100 p-6 backdrop-blur-md shadow-2xl rounded-3xl font-mono">
-      <CardContent className="space-y-6 p-0">
-        <div className="flex items-center justify-between border-b border-slate-800 pb-4">
-          <div>
-            <span className="text-[10px] text-slate-400 uppercase tracking-widest block">Phase</span>
-            <span className="text-lg font-bold text-cyan-400 uppercase">{phase}</span>
-          </div>
-          <div className="text-right">
-            <span className="text-[10px] text-slate-400 uppercase tracking-widest block">Round {round}</span>
-            <span className="text-2xl font-bold text-white">
-              {formattedMinutes}:{formattedSeconds}
-            </span>
-          </div>
-        </div>
+  switch (phase) {
+    case "uptime":
+      return (
+        <UptimePhase
+          round={round}
+          timeLeft={duration}
+          totalDuration={60}
+          players={allPlayers}
+        />
+      );
 
-        <div className="space-y-2 text-xs bg-slate-950/60 p-4 rounded-2xl border border-slate-800/80">
-          <div className="flex justify-between">
-            <span className="text-slate-400">Player:</span>
-            <span className="font-semibold text-white">{user?.name}</span>
-          </div>
-          <div className="flex justify-between">
-            <span className="text-slate-400">Role / Side:</span>
-            <span className="font-semibold text-cyan-400">{role} ({user?.side})</span>
-          </div>
-          <div className="flex justify-between">
-            <span className="text-slate-400">Status:</span>
-            <span className={isUserAlive ? "text-emerald-400 font-semibold" : "text-rose-400 font-semibold"}>
-              {user?.status}
-            </span>
-          </div>
-        </div>
+    case "hangVote":
+      return (
+        <HangVotePhase
+          players={players}
+          timeLeft={duration}
+          round={round}
+          voteValue={voteValue}
+          onVote={setVoteValue}
+          isUserAlive={isUserAlive}
+        />
+      );
 
-        {isHangVoting && isUserAlive && (
-          <div className="space-y-3">
-            <span className="text-xs text-amber-400 uppercase tracking-wider font-bold block">
-              Cast Vote (Security Clearance Hearing)
-            </span>
-            <VotePlayerList
-              voteType="hangVote"
-              players={players.filter((p) => p.status === "alive")}
-              onVote={setVoteValue}
-              voteValue={voteValue}
-            />
-          </div>
-        )}
+    case "hangVoteCount":
+    case "killVoteCount":
+      return <HangVoteCountPhase round={round} />;
 
-        {isKillVoting && (
-          isUserBadSide && isUserAlive ? (
-            <div className="space-y-3">
-              <span className="text-xs text-rose-400 uppercase tracking-wider font-bold block">
-                Cast Target (Silent Protocol - Hacker Target Pick)
-              </span>
-              <VotePlayerList
-                voteType="killVote"
-                players={players.filter((p) => p.status === "alive")}
-                onVote={setVoteValue}
-                voteValue={voteValue}
-              />
-            </div>
-          ) : (
-            <div className="bg-slate-950/60 p-4 rounded-2xl border border-slate-800/80 text-center space-y-1">
-              <span className="text-xs text-rose-400 font-bold uppercase tracking-wider block">
-                WAITING FOR MORNING
-              </span>
-              <p className="text-[11px] text-slate-400">
-                Covert operations active. Reconnecting node link coordinates.
-              </p>
-            </div>
-          )
-        )}
+    case "hangVoteResult":
+      return (
+        <SecurityClearanceResultPhase
+          round={round}
+          lastDeadPlayer={lastDeadPlayer}
+          timeLeft={duration}
+        />
+      );
 
-        {phase === "hangVoteResult" && (
-          <div className="bg-slate-950/60 p-4 rounded-2xl border border-slate-800/80 space-y-1 text-center font-mono">
-            <span className="text-[10px] text-slate-400 uppercase tracking-widest block font-bold">
-              SECURITY CLEARANCE RESULT
-            </span>
-            {lastDeadPlayer ? (
-              <div className="space-y-1">
-                <p className="text-base text-rose-400 font-bold uppercase">{lastDeadPlayer.name}</p>
-                <p className="text-xs text-slate-300 uppercase">Role: {lastDeadPlayer.role}</p>
-              </div>
-            ) : (
-              <p className="text-base text-cyan-400 font-bold uppercase">NONE</p>
-            )}
-          </div>
-        )}
+    case "downtime":
+      return (
+        <DowntimePhase
+          roomCode={roomCode}
+          round={round}
+          timeLeft={duration}
+          totalDuration={60}
+          phaseDuration={60}
+        />
+      );
 
-        {isCounting && (
-          <div className="space-y-2 bg-slate-950/60 p-4 rounded-2xl border border-slate-800/80">
-            <span className="text-xs text-slate-400 uppercase tracking-widest block font-bold">
-              Vote Tally Breakdown
-            </span>
-            {Object.keys(voterByCandidate).length > 0 ? (
-              Object.entries(voterByCandidate).map(([candidateId, voters]) => (
-                <div key={candidateId} className="flex justify-between text-xs py-1 border-b border-slate-800/40">
-                  <span>Candidate: {candidateId}</span>
-                  <span className="text-slate-400">Voters: {voters.join(", ")}</span>
-                </div>
-              ))
-            ) : (
-              <p className="text-xs text-slate-500">No votes cast.</p>
-            )}
-          </div>
-        )}
-      </CardContent>
-    </Card>
-  );
+    case "killVote":
+      return (
+        <KillVotePhase
+          players={players}
+          timeLeft={duration}
+          round={round}
+          voteValue={voteValue}
+          onVote={setVoteValue}
+          isUserBadSide={isUserBadSide}
+          isUserAlive={isUserAlive}
+        />
+      );
+
+    case "killVoteResult":
+      return (
+        <KillVoteResultPhase
+          round={round}
+          lastDeadPlayer={lastDeadPlayer}
+          voterByCandidate={voterByCandidate}
+          timeLeft={duration}
+          players={allPlayers}
+          isUserBadSide={isUserBadSide}
+          isUserAlive={isUserAlive}
+        />
+      );
+
+    case "incidentReport":
+      return (
+        <IncidentReportPhase
+          round={round}
+          killDeadPlayer={lastDeadPlayer}
+          timeLeft={duration}
+        />
+      );
+
+    default:
+      return (
+        <UptimePhase
+          round={round}
+          timeLeft={duration}
+          totalDuration={60}
+          players={allPlayers}
+        />
+      );
+  }
 }
+

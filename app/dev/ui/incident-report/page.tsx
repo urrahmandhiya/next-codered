@@ -28,7 +28,7 @@ export default function DevIncidentReportUiPage() {
     id: "1",
     name: "Alice",
     status: "dead",
-    role: "villager",
+    role: "user",
     side: "good",
   };
 
