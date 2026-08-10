@@ -7,9 +7,6 @@ import { GameState, InGamePlayer } from "@/lib/definitions";
 import PhaseLayout from "@/components/phase-layout";
 import { useRouter } from "next/navigation";
 import { User } from "lucide-react";
-
-const fetcher: Fetcher<{ gameState: GameState, activePlayersIds: string[] }> = (url: string) => fetch(url).then(res => res.json())
-
 import UptimePhase from "@/components/room/uptime-phase/uptime-phase";
 import HangVotePhase from "@/components/room/hearing-phase/hang-vote-phase";
 import HangVoteCountPhase from "@/components/room/hearing-phase/hang-vote-count-phase";
@@ -19,6 +16,8 @@ import KillVotePhase from "@/components/room/kill-vote-phase/kill-vote-phase";
 import KillVoteResultPhase from "@/components/room/kill-vote-phase/kill-vote-result-phase";
 import IncidentReportPhase from "@/components/room/incident-report/incident-report-phase";
 import EndScreenPhase from "@/components/room/end-screen/end-screen-phase";
+
+const fetcher: Fetcher<{ gameState: GameState, activePlayersIds: string[] }> = (url: string) => fetch(url).then(res => res.json())
 
 export default function GameRoom({ roomCode }: { roomCode: string }) {
   const router = useRouter();

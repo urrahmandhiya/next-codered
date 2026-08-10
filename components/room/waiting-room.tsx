@@ -3,9 +3,9 @@
 import { Button } from "@/components/ui/button";
 import PlayerList from "./player-list";
 import { Skeleton } from "../ui/skeleton";
-import { startGame, deletePlayer } from "@/lib/actions/room";
+import { startGame, deletePlayer, abortWaitingRoom } from "@/lib/actions/room";
 import RoomSettings from "./room-settings";
-import { useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 import { Spinner } from "../ui/spinner";
 import { Alert, AlertTitle } from "../ui/alert";
 import { AlertCircleIcon, Copy, Settings, Check, LogOut, X } from "lucide-react";
@@ -15,6 +15,7 @@ import { notFound, useRouter } from "next/navigation";
 import PlayerNameChange from "./player-name.change";
 import { toast } from "sonner";
 import { Separator } from "../ui/separator";
+import { cn } from "@/lib/utils";
 
 const isDev = process.env.NEXT_PUBLIC_MODE === "DEV";
 const fetcher: Fetcher<{ room: Room, userId: string }> = async (url: string) => {
@@ -29,8 +30,10 @@ export default function WaitingRoom({ roomCode }: { roomCode: string }) {
     const [isPending, startTransition] = useTransition();
     const [alertMessage, setAlertMessage] = useState("");
     const [isStarting, setIsStarting] = useState(false);
+    const [isAborting, setIsAborting] = useState(false);
     const [showSettings, setShowSettings] = useState(false);
     const [copied, setCopied] = useState(false);
+    const [timer, setTimer] = useState(0);
     const router = useRouter();
 
     const { data, isLoading, error, mutate } = useSWR(`/api/room/${roomCode}`, fetcher, {
@@ -52,6 +55,7 @@ export default function WaitingRoom({ roomCode }: { roomCode: string }) {
     const roles = roomData?.roles || [];
     const discussDuration = roomData?.discussDuration || 0;
     const voteDuration = roomData?.voteDuration || 0;
+    const waitingRoomEndAt = roomData?.waitingRoomEndAt;
 
     const handleStartGame = () => {
         startTransition(async () => {
@@ -77,12 +81,42 @@ export default function WaitingRoom({ roomCode }: { roomCode: string }) {
         });
     };
 
+    const executeAbortRoom = () => {
+        startTransition(async () => {
+            const result = await abortWaitingRoom(roomCode)
+            if (result?.success === false) {
+                setAlertMessage(result.error);
+            } else {
+                setIsAborting(true);
+                mutate();
+            }
+        })
+    }
+
     const copyCode = () => {
         navigator.clipboard.writeText(roomCode);
         setCopied(true);
         toast.success("Room code copied to clipboard");
         setTimeout(() => setCopied(false), 2000);
     }
+
+    useEffect(() => {
+        if (!waitingRoomEndAt) return;
+        const tick = () => {
+            const remaining = Math.ceil((waitingRoomEndAt - Date.now()) / 1000);
+            if (remaining <= 0) {
+                setTimer(0);
+                executeAbortRoom();
+                return true;
+            }
+            setTimer(remaining)
+            return false;
+        }
+        if (tick()) return;
+        const timerId = setInterval(() => {
+            if (tick()) clearInterval(timerId)
+        }, 500)
+    }, [waitingRoomEndAt])
 
     if (isLoading) {
         return (
@@ -100,6 +134,10 @@ export default function WaitingRoom({ roomCode }: { roomCode: string }) {
         )
     }
 
+    const minutes = Math.floor(timer / 60).toString().padStart(2, "0");
+    const seconds = (timer % 60).toString().padStart(2, "0");
+    const isUrgent = timer <= 15;
+
     return (
         <div className="flex flex-col items-center justify-between w-full h-full max-w-2xl md:max-w-5xl px-4 py-6 md:py-12 overflow-hidden">
 
@@ -107,6 +145,23 @@ export default function WaitingRoom({ roomCode }: { roomCode: string }) {
             <div className="flex flex-col items-center gap-6 md:gap-10 w-full">
                 {/* Header */}
                 <div className="text-center space-y-1">
+                    <div className="flex flex-col items-center flex-1">
+                        <div className="text-center space-y-1">
+                            <p className="font-mono text-xs text-slate-500 tracking-widest uppercase">
+                                Room aborted in:
+                            </p>
+                        </div>
+                        <div className="flex flex-col items-center py-4">
+                            <span className={cn(
+                                "font-mono font-bold text-[40px] leading-none tracking-[4px]",
+                                isUrgent
+                                    ? "text-rose-400 drop-shadow-[0_0_20px_rgba(255,42,85,0.5)]"
+                                    : "text-cyan drop-shadow-[0_0_20px_rgba(6,182,212,0.3)]"
+                            )}>
+                                {minutes}:{seconds}
+                            </span>
+                        </div>
+                    </div>
                     <h2 className="text-[10px] sm:text-xs font-mono tracking-[0.3em] text-cyan uppercase opacity-80 text-glow-cyan">
                         Secure Connection Established
                     </h2>
@@ -173,10 +228,10 @@ export default function WaitingRoom({ roomCode }: { roomCode: string }) {
 
                     <Button
                         onClick={handleStartGame}
-                        disabled={isPending || !isHost || isStarting}
+                        disabled={isPending || !isHost || isStarting || isAborting}
                         className="flex-1 md:flex-none h-16 md:h-20 px-12 md:w-full md:max-w-xl rounded-full md:rounded-2xl bg-cyan text-black font-bold text-lg md:text-xl hover:bg-cyan/90 border-glow-cyan disabled:opacity-50 disabled:bg-cyan/30 transition-all shadow-[0_0_30px_var(--color-cyan-glow)] active:scale-95"
                     >
-                        {isPending || isStarting ? <Spinner className="text-black" /> : "START GAME"}
+                        {isPending || isStarting || isAborting ? <Spinner className="text-black" /> : "START GAME"}
                     </Button>
 
                     <Button

@@ -13,6 +13,7 @@ export interface Room {
     discussDuration: number;
     voteDuration: number;
     phase?: string;
+    waitingRoomEndAt: number;
 }
 
 
@@ -33,6 +34,7 @@ type RoomMetaData = {
     activePlayersIds: string;
     discussDuration: number;
     voteDuration: number;
+    waitingRoomEndAt: number;
 };
 
 export type DynamicFields = {

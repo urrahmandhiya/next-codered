@@ -65,6 +65,7 @@ export async function getRoomState(roomCode: string): Promise<{ room: Room | nul
             discussDuration: roomData.discussDuration,
             voteDuration: roomData.voteDuration,
             phase: String(roomData.phase ?? ""),
+            waitingRoomEndAt: roomData.waitingRoomEndAt,
         };
 
         if (userId && activePlayersIds.includes(userId)) {

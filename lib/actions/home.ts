@@ -5,7 +5,7 @@ import { Lock } from "@upstash/lock";
 import { redirect } from "next/navigation";
 import { cookies } from "next/headers";
 import { revalidatePath } from "next/cache";
-import { ActionResponse } from "../definitions";
+import { ActionResponse, RedisRoom } from "@/lib/definitions";
 
 const redis = Redis.fromEnv();
 const INITIAL_ROOM_DEFAULTS = {
@@ -13,8 +13,8 @@ const INITIAL_ROOM_DEFAULTS = {
     PLAYERS_IN_ROOM: 1,
     DISCUSS_DURATION: 15,
     VOTE_DURATION: 15,
-    KEY_TTL: 300,
     MAX_CONCURRENT_ROOM: 3,
+    WAITING_ROOM_DURATION: 120, // set to 2-5 minutes in prod/non-dev
 }
 
 async function generateUniqueRoomCode(): Promise<string> {
@@ -27,7 +27,7 @@ async function generateUniqueRoomCode(): Promise<string> {
     throw new Error("Failed to generate a unique room code. Please try again.");
 }
 
-export async function createRoom(prevState: ActionResponse, formData: FormData): Promise<ActionResponse> {
+export async function createRoom(_prevState: ActionResponse, formData: FormData): Promise<ActionResponse> {
     console.log("[createRoom] Action started");
     console.time("createRoom total");
 
@@ -59,6 +59,7 @@ export async function createRoom(prevState: ActionResponse, formData: FormData):
         playersInRoom: INITIAL_ROOM_DEFAULTS.PLAYERS_IN_ROOM,
         discussDuration: INITIAL_ROOM_DEFAULTS.DISCUSS_DURATION,
         voteDuration: INITIAL_ROOM_DEFAULTS.VOTE_DURATION,
+        waitingRoomEndAt: Date.now() + (Number(INITIAL_ROOM_DEFAULTS.WAITING_ROOM_DURATION) * 1000),
     };
 
     const lock = new Lock({
@@ -95,10 +96,9 @@ export async function createRoom(prevState: ActionResponse, formData: FormData):
         p.sadd(`room:${roomCode}:deadPlayersIds`, '__EMPTY__');
         p.hset(`room:${roomCode}`, initialRoomState);
 
-        // keys are set to expire in one hour
-        p.expire(`room:${roomCode}`, INITIAL_ROOM_DEFAULTS.KEY_TTL);
-        p.expire(`room:${roomCode}:activePlayersIds`, INITIAL_ROOM_DEFAULTS.KEY_TTL);
-        p.expire(`room:${roomCode}:deadPlayersIds`, INITIAL_ROOM_DEFAULTS.KEY_TTL);
+        p.expire(`room:${roomCode}`, Number(INITIAL_ROOM_DEFAULTS.WAITING_ROOM_DURATION + 60));
+        p.expire(`room:${roomCode}:activePlayersIds`, Number(INITIAL_ROOM_DEFAULTS.WAITING_ROOM_DURATION + 60));
+        p.expire(`room:${roomCode}:deadPlayersIds`, Number(INITIAL_ROOM_DEFAULTS.WAITING_ROOM_DURATION + 60));
 
         console.time("redis pipeline exec");
         await p.exec();
@@ -127,7 +127,7 @@ export async function createRoom(prevState: ActionResponse, formData: FormData):
     redirect(`/room/${roomCode}`);
 }
 
-export async function joinRoom(prevState: ActionResponse, formData: FormData): Promise<ActionResponse> {
+export async function joinRoom(_prevState: ActionResponse, formData: FormData): Promise<ActionResponse> {
     console.log("[joinRoom] Action started");
     console.time("joinRoom total");
 
@@ -169,9 +169,17 @@ export async function joinRoom(prevState: ActionResponse, formData: FormData): P
             return { success: false, error: "Unable to join room due to lock conflict. Please try again." };
         }
 
-        const roomData = await redis.hgetall(key);
+        const roomData: RedisRoom | null = await redis.hgetall(key);
         if (!roomData || !Object.hasOwn(roomData, "playersInRoom")) {
             throw new Error(`Room ${roomCode} is not found.`);
+        }
+
+        if (roomData?.roomStatus === "starting" || roomData?.roomStatus === "playing") {
+            throw new Error(`Room ${roomCode} is already started`);
+        }
+
+        if (roomData?.roomStatus === "aborted") {
+            throw new Error(`Room ${roomCode} is aborted`);
         }
 
         const playersInRoom = Number(roomData.playersInRoom);
