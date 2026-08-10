@@ -11,13 +11,19 @@ import { Alert, AlertTitle } from "../ui/alert";
 import { AlertCircleIcon, Copy, Settings, Check, LogOut, X } from "lucide-react";
 import { Player, Room } from "@/lib/definitions";
 import useSWR, { Fetcher } from "swr";
-import { useRouter } from "next/navigation";
+import { notFound, useRouter } from "next/navigation";
 import PlayerNameChange from "./player-name.change";
 import { toast } from "sonner";
 import { Separator } from "../ui/separator";
 
 const isDev = process.env.NEXT_PUBLIC_MODE === "DEV";
-const fetcher: Fetcher<{ room: Room, userId: string }> = (url: string) => fetch(url).then(res => res.json())
+const fetcher: Fetcher<{ room: Room, userId: string }> = async (url: string) => {
+    const res = await fetch(url);
+    if (res.status == 404) {
+        notFound();
+    }
+    return res.json();
+}
 
 export default function WaitingRoom({ roomCode }: { roomCode: string }) {
     const [isPending, startTransition] = useTransition();
@@ -27,12 +33,14 @@ export default function WaitingRoom({ roomCode }: { roomCode: string }) {
     const [copied, setCopied] = useState(false);
     const router = useRouter();
 
-    const { data, isLoading, mutate } = useSWR(`/api/room/${roomCode}`, fetcher, {
+    const { data, isLoading, error, mutate } = useSWR(`/api/room/${roomCode}`, fetcher, {
         refreshInterval: isDev ? 0 : 5000,
         revalidateOnFocus: false,
         revalidateOnReconnect: false,
         revalidateIfStale: false,
     });
+
+    if (error) notFound();
 
     const userId = data?.userId;
     const roomData = data?.room;

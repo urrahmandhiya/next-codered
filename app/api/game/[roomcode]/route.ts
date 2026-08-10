@@ -1,6 +1,7 @@
 import { GameState } from "@/lib/definitions";
 import { mapVoterByCandidatesToNames, phaseTransition, tallyVotes, winningCondition } from "@/lib/pure/game";
 import { gameRoomPoll, gatekeepResolver, getVotingData, writebackResolver } from "@/lib/redis-lua/game";
+import { error } from "console";
 import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 
@@ -103,5 +104,6 @@ export const dynamic = 'force-dynamic';
 export async function GET(_request: Request, context: RouteContext<'/api/game/[roomcode]'>) {
     const { roomcode } = await context.params;
     const { gameState, activePlayersIds } = await getGameState(roomcode)
+    if (!gameState) return NextResponse.json({ error: "Game stat not found" }, { status: 404 })
     return NextResponse.json({ gameState, activePlayersIds });
 }

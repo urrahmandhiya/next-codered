@@ -91,5 +91,6 @@ export const dynamic = 'force-dynamic';
 export async function GET(_request: NextRequest, context: RouteContext<'/api/room/[roomcode]'>) {
     const { roomcode } = await context.params;
     const { room, userId } = await getRoomState(roomcode);
+    if (!room) return NextResponse.json({ error: 'Room Not Found' }, { status: 404 });
     return NextResponse.json({ room, userId });
 }
