@@ -6,7 +6,7 @@ import { cookies } from "next/headers";
 
 const redis = Redis.fromEnv();
 
-export async function getPlayerVote(roomCode: string, voteId: string): Promise<ActionResponse> {
+export async function setPlayerVote(roomCode: string, voteId: string): Promise<ActionResponse> {
     const upperCode = roomCode.toUpperCase();
     const userId = (await cookies()).get("user_id")?.value;
     const key = `room:${upperCode}`;

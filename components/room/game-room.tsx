@@ -2,7 +2,7 @@
 
 import useSWR, { Fetcher } from "swr";
 import { useEffect, useRef, useState, useCallback, useMemo } from "react";
-import { getPlayerVote } from "@/lib/actions/game";
+import { setPlayerVote } from "@/lib/actions/game";
 import { GameState, InGamePlayer } from "@/lib/definitions";
 import PhaseLayout from "@/components/phase-layout";
 import { useRouter } from "next/navigation";
@@ -61,10 +61,10 @@ export default function GameRoom({ roomCode }: { roomCode: string }) {
   const handlePhaseTransition = useCallback(async () => {
     try {
       if (phase === "hangVote" && isUserAlive) {
-        await getPlayerVote(roomCode, voteValue);
+        await setPlayerVote(roomCode, voteValue);
       }
       if (phase === "killVote" && isUserBadSide && isUserAlive) {
-        await getPlayerVote(roomCode, voteValue);
+        await setPlayerVote(roomCode, voteValue);
       }
       await mutate();
     } catch {
