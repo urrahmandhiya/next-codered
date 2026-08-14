@@ -89,6 +89,7 @@ export async function startGame(roomCode: string): Promise<ActionResponse> {
                     initialGameState[`p:${shuffledPlayers[playerIdx]}:role`] = role;
                     initialGameState[`p:${shuffledPlayers[playerIdx]}:status`] = "alive";
                     initialGameState[`p:${shuffledPlayers[playerIdx]}:side`] = ROLES_SIDES[role];
+                    initialGameState[`p:${shuffledPlayers[playerIdx]}:inactivity`] = 0;
 
                     if (ROLES_SIDES[role] === "bad") {
                         initialGameState.badSide = Number(initialGameState.badSide) + 1;

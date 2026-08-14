@@ -1,7 +1,6 @@
 import { GameState } from "@/lib/definitions";
-import { mapVoterByCandidatesToNames, phaseTransition, tallyVotes, winningCondition } from "@/lib/pure/game";
+import { inactivityCheck, mapVoterByCandidatesToNames, phaseTransition, tallyVotes, winningCondition } from "@/lib/pure/game";
 import { gameRoomPoll, gatekeepResolver, getVotingData, writebackResolver } from "@/lib/redis-lua/game";
-import { error } from "console";
 import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 
@@ -16,6 +15,8 @@ export async function getGameState(roomCode: string): Promise<{ gameState: GameS
 
         const [isResolver, data] = await gatekeepResolver(key, currentTime);
         let updatedState = {};
+        let votedPlayerId = "none";
+        let isInactivityHanging = false;
 
         if (isResolver && data.endGame === "inProgress") {
             const { nextPhase, phaseEndAtDuration } = phaseTransition(data);
@@ -27,8 +28,14 @@ export async function getGameState(roomCode: string): Promise<{ gameState: GameS
             let voterByCandidate: Record<string, string[]> = {};
 
             if (isVoting) {
-                const [voterData, votedIds] = await getVotingData(key);
+                const [voterData, votedIds, inactivityData] = await getVotingData(key);
+
                 ({ votedPlayerIds, voterByCandidate } = tallyVotes(voterData, votedIds));
+                ({ votedPlayerIds, isInactivityHanging } = inactivityCheck(votedPlayerIds, voterByCandidate, nextPhase, inactivityData, isInactivityHanging));
+
+                if (isInactivityHanging || votedPlayerIds.length === 1) {
+                    votedPlayerId = votedPlayerIds[0];
+                }
             }
 
             const endGame = winningCondition(data, nextPhase);
@@ -37,7 +44,7 @@ export async function getGameState(roomCode: string): Promise<{ gameState: GameS
                 phase: nextPhase,
                 phaseEndAt: Date.now() + (phaseEndAtDuration * 1000),
                 round: isNextRound ? data.round + 1 : data.round,
-                votedPlayerId: (isVoting && votedPlayerIds.length === 1) ? votedPlayerIds[0] : "none",
+                votedPlayerId: votedPlayerId,
                 voterByCandidateJson: JSON.stringify(voterByCandidate),
                 endGame: endGame,
                 resolvingToken: data.resolvingEndAt,

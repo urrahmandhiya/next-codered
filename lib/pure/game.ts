@@ -1,4 +1,5 @@
 import { DynamicFields } from "@/lib/definitions";
+import { shuffleArray } from "@/lib/utils";
 
 interface phaseTransition {
     round: number;
@@ -116,4 +117,30 @@ export function mapVoterByCandidatesToNames(gameData: mapVoterByCandidatesToName
         : {};
 
     return validVoterByCandidate;
+}
+
+export function inactivityCheck(
+    votedPlayerIds: string[],
+    voterByCandidate: Record<string, string[]>,
+    nextPhase: string,
+    inactivityData: Record<string, number>,
+    isInactivityHanging: boolean,
+) {
+    const threshold = 3;
+    const isNotHanging = votedPlayerIds[0] === "none";
+    const isTiedWithNotVoting = Object.keys(voterByCandidate).includes("none") && votedPlayerIds.length > 1;
+    const isHangVoting = nextPhase === "hangVoteCount";
+    const isInactivityExist = Object.keys(inactivityData).length;
+
+    if ((isNotHanging || isTiedWithNotVoting) && isHangVoting && isInactivityExist) {
+        let inactivities = Object.entries(inactivityData)
+            .filter((entry) => Number(entry[1]) >= threshold)
+            .map((entry) => entry[0].split(":")[1]);
+        inactivities = inactivities.length > 1 ? shuffleArray(inactivities) : inactivities;
+        if (inactivities.length) {
+            votedPlayerIds = inactivities;
+            isInactivityHanging = true;
+        }
+    }
+    return { votedPlayerIds, isInactivityHanging };
 }
