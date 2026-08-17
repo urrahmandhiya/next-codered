@@ -14,9 +14,6 @@ export async function getGameState(roomCode: string): Promise<{ gameState: GameS
         const currentTime = Date.now();
 
         const [isResolver, data] = await gatekeepResolver(key, currentTime);
-        let updatedState = {};
-        let votedPlayerId = "none";
-        let isInactivityHanging = false;
 
         if (isResolver && data.endGame === "inProgress") {
             const { nextPhase, phaseEndAtDuration } = phaseTransition(data);
@@ -24,8 +21,12 @@ export async function getGameState(roomCode: string): Promise<{ gameState: GameS
             const isNextRound = nextPhase === "uptime";
             const isVoting = data.phase.endsWith("Vote");
 
+            let updatedState = {};
             let votedPlayerIds: string[] = [];
             let voterByCandidate: Record<string, string[]> = {};
+            let votedPlayerId = "none";
+            let votedPlayerCause = "none";
+            let isInactivityHanging = false;
 
             if (isVoting) {
                 const [voterData, votedIds, inactivityData] = await getVotingData(key);
@@ -35,6 +36,13 @@ export async function getGameState(roomCode: string): Promise<{ gameState: GameS
 
                 if (isInactivityHanging || votedPlayerIds.length === 1) {
                     votedPlayerId = votedPlayerIds[0];
+                    if (isInactivityHanging) {
+                        votedPlayerCause = "inactivity";
+                    } else if (nextPhase === "hangVoteCount") {
+                        votedPlayerCause = "hang"
+                    } else {
+                        votedPlayerCause = "kill";
+                    }
                 }
             }
 
@@ -45,6 +53,7 @@ export async function getGameState(roomCode: string): Promise<{ gameState: GameS
                 phaseEndAt: Date.now() + (phaseEndAtDuration * 1000),
                 round: isNextRound ? data.round + 1 : data.round,
                 votedPlayerId: votedPlayerId,
+                votedPlayerCause: votedPlayerCause,
                 voterByCandidateJson: JSON.stringify(voterByCandidate),
                 endGame: endGame,
                 resolvingToken: data.resolvingEndAt,
@@ -60,7 +69,8 @@ export async function getGameState(roomCode: string): Promise<{ gameState: GameS
             return { gameState: null, activePlayersIds };
         }
 
-        console.log("[lastDeadPlayerId]", gameData.lastDeadPlayerId)
+        console.log("[Dead Player ID]", gameData.lastDeadPlayerId)
+        console.log("[Dead Player Cause]", gameData.lastDeadPlayerCause)
         const validVoterByCandidate = mapVoterByCandidatesToNames(gameData);
 
         const gameState = {
@@ -97,6 +107,7 @@ export async function getGameState(roomCode: string): Promise<{ gameState: GameS
             phaseEndAt: Number(gameData.phaseEndAt),
             round: gameData.round,
             lastDeadPlayerId: gameData.lastDeadPlayerId,
+            lastDeadPlayerCause: gameData.lastDeadPlayerCause,
             voterByCandidate: validVoterByCandidate,
             endGame: gameData.endGame,
         }

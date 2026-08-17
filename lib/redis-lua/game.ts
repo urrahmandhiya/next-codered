@@ -7,7 +7,7 @@ const redis = Redis.fromEnv();
 
 export async function gatekeepResolver(
     key: string, currentTime: number):
-    Promise<[boolean, Omit<GameRoomMetaData, 'lastDeadPlayerId' | 'voterByCandidateJson'>]> {
+    Promise<[boolean, Omit<GameRoomMetaData, 'lastDeadPlayerId' | 'voterByCandidateJson' | 'lastDeadPlayerCause'>]> {
     const gatekeepScript = `
     local gameStateFields = {
         'phase',
@@ -57,7 +57,10 @@ export async function gatekeepResolver(
     return {isResolver, cjson.encode(data)}
     `;
 
-    const [isResolver, data] = await redis.eval(gatekeepScript, [key], [currentTime]) as [boolean, Omit<GameRoomMetaData, 'lastDeadPlayerId' | 'voterByCandidateJson'>];
+    const [isResolver, data] = await redis.eval(gatekeepScript, [key], [currentTime]) as [
+        boolean, 
+        Omit<GameRoomMetaData, 'lastDeadPlayerId' | 'voterByCandidateJson' | 'lastDeadPlayerCause'>
+    ];
     return [isResolver, data];
 }
 
@@ -147,9 +150,11 @@ export async function writebackResolver(key: string, userId: string, updatedStat
             -- execute the voted player
             local deadPlayerId = updatedState.votedPlayerId
             local deadPlayerStatus = 'p:' .. deadPlayerId .. ':status'
+            local deadPlayerCause = updatedState.votedPlayerCause
             redis.call('HSET', key, 
                 deadPlayerStatus, 'dead', 
-                'lastDeadPlayerId', deadPlayerId
+                'lastDeadPlayerId', deadPlayerId,
+                'lastDeadPlayerCause', deadPlayerCause
             )
             redis.call('SADD', deadPlayersIdsKey, deadPlayerId)
 
@@ -159,10 +164,11 @@ export async function writebackResolver(key: string, userId: string, updatedStat
             redis.call('HINCRBY', key, decreasedSide .. 'Side', -1)
         end
 
-        -- clean lastDeadPlayerId after count phases
+        -- clean executed player states after count phases
         if updatedState.phase == 'uptime' or updatedState.phase == 'downtime' then
             redis.call('HSET', key, 
                 'lastDeadPlayerId', "none", 
+                'lastDeadPlayerCause', "none",
                 'voterByCandidateJson', "{}"
             )
         end
@@ -200,6 +206,7 @@ export async function gameRoomPoll(key: string, userId: string): Promise<[RedisG
         'phaseEndAt',
         'round',
         'lastDeadPlayerId',
+        'lastDeadPlayerCause',
         'voterByCandidateJson',
         'endGame', 
     }

@@ -55,6 +55,7 @@ export type GameRoomMetaData = {
     discussDuration: number;
     voteDuration: number;
     lastDeadPlayerId: string;
+    lastDeadPlayerCause: string;
     voterByCandidateJson: string;
     goodSide: number;
     badSide: number;
@@ -69,6 +70,7 @@ export interface GameState {
     user: InGamePlayer;
     players: InGamePlayer[];
     lastDeadPlayerId: string;
+    lastDeadPlayerCause: string;
     voterByCandidate: Record<string, string[]>;
     endGame: string;
 }

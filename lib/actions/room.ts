@@ -71,6 +71,7 @@ export async function startGame(roomCode: string): Promise<ActionResponse> {
             roomStatus: "playing",
             round: 0,
             lastDeadPlayerId: "none",
+            lastDeadPlayerCause: "none",
             goodSide: 0,
             badSide: 0,
             endGame: "inProgress",

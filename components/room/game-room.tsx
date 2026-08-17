@@ -52,6 +52,7 @@ export default function GameRoom({ roomCode }: { roomCode: string }) {
   const isUserAlive = user?.status === "alive";
   const voterByCandidate: Record<string, string[]> = gameData?.voterByCandidate ?? {};
   const lastDeadPlayer: InGamePlayer | null = players.find((p) => p.id === gameData?.lastDeadPlayerId) ?? null;
+  const lastDeadPlayerCause = gameData?.lastDeadPlayerCause ?? "none";
   const isStillPlaying = gameData?.endGame === "inProgress";
 
   useEffect(() => {
@@ -262,6 +263,7 @@ export default function GameRoom({ roomCode }: { roomCode: string }) {
         <SecurityClearanceResultPhase
           round={round}
           lastDeadPlayer={lastDeadPlayer}
+          lastDeadPlayerCause={lastDeadPlayerCause}
           timeLeft={duration}
         />
       );
