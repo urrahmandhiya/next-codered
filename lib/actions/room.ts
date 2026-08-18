@@ -8,6 +8,10 @@ import { revalidatePath } from "next/cache";
 
 const redis = Redis.fromEnv();
 const MINIMAL_CURRENTPLAYERS = 4;
+
+// roundLimit = playersInRoom + ROUND_LIMIT_ADDITION
+const ROUND_LIMIT_ADDITION = 3; 
+
 const CURRENT_ROLES = ["hacker", "user"];
 const ROLES_SIDES: DynamicFields = {
     hacker: "bad",
@@ -70,6 +74,7 @@ export async function startGame(roomCode: string): Promise<ActionResponse> {
         const initialGameState: Record<string, string | number> = {
             roomStatus: "playing",
             round: 0,
+            roundLimit: Number(playersInRoom + ROUND_LIMIT_ADDITION),
             lastDeadPlayerId: "none",
             lastDeadPlayerCause: "none",
             goodSide: 0,

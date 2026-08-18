@@ -59,6 +59,7 @@ export type GameRoomMetaData = {
     voterByCandidateJson: string;
     goodSide: number;
     badSide: number;
+    roundLimit: number;
     endGame: string;
     resolvingEndAt: number;
 }

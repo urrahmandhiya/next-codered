@@ -19,6 +19,7 @@ export async function gatekeepResolver(
         'badSide',
         'goodSide',
         'endGame',
+        'roundLimit',
     }
 
     local numberFieldSet = {
@@ -29,6 +30,7 @@ export async function gatekeepResolver(
         ['resolvingEndAt'] = true,
         ['goodSide'] = true,
         ['badSide'] = true,
+        ['roundLimit'] = true,
     }
 
     local value = redis.call('HMGET', KEYS[1], unpack(gameStateFields))
