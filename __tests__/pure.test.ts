@@ -96,16 +96,28 @@ describe('pure func in game.ts', () => {
 
     describe('winningCondition()', () => {
         it("good won during the uptime", () => {
-            const result = winningCondition({ goodSide: 2, badSide: 0 }, "uptime");
+            const result = winningCondition({ goodSide: 2, badSide: 0, round: 3, roundLimit: 7 }, "uptime");
             expect(result).toBe("goodEnd")
         });
         it("bad won during the downtime", () => {
-            const result = winningCondition({ goodSide: 0, badSide: 1 }, "downtime");
+            const result = winningCondition({ goodSide: 0, badSide: 1, round: 3, roundLimit: 7 }, "downtime");
             expect(result).toBe("badEnd")
         });
         it("wait for uptime or downtime before changing endGame", () => {
-            const result = winningCondition({ goodSide: 0, badSide: 1 }, "killVoteCount");
+            const result = winningCondition({ goodSide: 0, badSide: 1, round: 3, roundLimit: 7 }, "killVoteCount");
             expect(result).toBe("inProgress")
+        });
+        it("round limit met or exceeded", () => {
+            const result = winningCondition({ goodSide: 2, badSide: 1, round: 7, roundLimit: 7 }, "uptime");
+            expect(result).toBe("drawEnd")
+        });
+        it("goodEnd takes precedence over drawEnd", () => {
+            const result = winningCondition({ goodSide: 2, badSide: 0, round: 7, roundLimit: 7 }, "uptime");
+            expect(result).toBe("goodEnd")
+        });
+        it("badEnd takes precedence over drawEnd", () => {
+            const result = winningCondition({ goodSide: 0, badSide: 1, round: 7, roundLimit: 7 }, "uptime");
+            expect(result).toBe("badEnd")
         });
     });
 
