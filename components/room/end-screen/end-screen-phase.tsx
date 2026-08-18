@@ -20,23 +20,20 @@ export default function EndScreenPhase({
   onReturnToLobby,
 }: EndScreenPhaseProps) {
   const isGoodSideVictory = endGame === "goodEnd";
+  const isRoundLimitExceeded = endGame === "drawEnd";
 
   return (
-    <PhaseLayout theme={isGoodSideVictory ? "starting" : "downtime"}>
+    <PhaseLayout theme={(isGoodSideVictory || isRoundLimitExceeded) ? "starting" : "downtime"}>
       <div className="flex flex-col flex-1 w-full max-w-4xl mx-auto pt-[60px] pb-6 justify-between h-full">
         <div className="flex-1 flex flex-col justify-center items-center gap-6 my-auto">
           <div className="flex flex-col items-center text-center">
             <div className={cn(
               "w-20 h-20 rounded-full border flex items-center justify-center mb-4 shadow-lg",
-              isGoodSideVictory
+              (isGoodSideVictory || isRoundLimitExceeded)
                 ? "border-cyan/40 bg-cyan/10 text-cyan shadow-[0_0_30px_rgba(6,182,212,0.15)]"
                 : "border-rose-500/40 bg-rose-500/10 text-rose-500 shadow-[0_0_30px_rgba(255,42,85,0.15)]"
             )}>
-              {isGoodSideVictory ? (
-                <ShieldCheck className="w-10 h-10" />
-              ) : (
-                <ShieldAlert className="w-10 h-10" />
-              )}
+              <ShieldAlert className="w-10 h-10" />
             </div>
 
             <span className="font-mono text-xs tracking-[0.25em] text-slate-400 uppercase">
@@ -44,12 +41,12 @@ export default function EndScreenPhase({
             </span>
             <h1 className={cn(
               "text-4xl md:text-5xl font-extrabold tracking-widest mt-2 uppercase",
-              isGoodSideVictory ? "text-cyan text-glow-cyan" : "text-rose-500 drop-shadow-[0_0_15px_rgba(255,42,85,0.4)]"
+              (isGoodSideVictory || isRoundLimitExceeded) ? "text-cyan text-glow-cyan" : "text-rose-500 drop-shadow-[0_0_15px_rgba(255,42,85,0.4)]"
             )}>
-              {isGoodSideVictory ? "NETWORK SECURED" : "SYSTEM COMPROMISED"}
+              {isRoundLimitExceeded ? "MUTUAL TERMINATION" : isGoodSideVictory ? "NETWORK SECURED" : "SYSTEM COMPROMISED"}
             </h1>
             <p className="font-mono text-[11px] text-slate-500 tracking-wider mt-2">
-              COMPLETED IN {round} OPERATIONAL ROUNDS
+              {isRoundLimitExceeded ? `ROUND LIMIT EXCEEDED ${round}/${round}` : `COMPLETED IN ${round} OPERATIONAL ROUNDS`}
             </p>
           </div>
 
@@ -63,7 +60,7 @@ export default function EndScreenPhase({
               {players.map((player) => {
                 const isDead = player.status !== "alive";
                 const isBadSide = player.side === "bad";
-                
+
                 return (
                   <div
                     key={player.id}

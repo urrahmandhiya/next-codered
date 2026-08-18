@@ -1,5 +1,5 @@
 import { GameState } from "@/lib/definitions";
-import { mapVoterByCandidatesToNames, phaseTransition, tallyVotes, winningCondition } from "@/lib/pure/game";
+import { inactivityCheck, mapVoterByCandidatesToNames, phaseTransition, tallyVotes, winningCondition } from "@/lib/pure/game";
 import { gameRoomPoll, gatekeepResolver, getVotingData, writebackResolver } from "@/lib/redis-lua/game";
 import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
@@ -14,7 +14,6 @@ export async function getGameState(roomCode: string): Promise<{ gameState: GameS
         const currentTime = Date.now();
 
         const [isResolver, data] = await gatekeepResolver(key, currentTime);
-        let updatedState = {};
 
         if (isResolver && data.endGame === "inProgress") {
             const { nextPhase, phaseEndAtDuration } = phaseTransition(data);
@@ -22,12 +21,29 @@ export async function getGameState(roomCode: string): Promise<{ gameState: GameS
             const isNextRound = nextPhase === "uptime";
             const isVoting = data.phase.endsWith("Vote");
 
+            let updatedState = {};
             let votedPlayerIds: string[] = [];
             let voterByCandidate: Record<string, string[]> = {};
+            let votedPlayerId = "none";
+            let votedPlayerCause = "none";
+            let isInactivityHanging = false;
 
             if (isVoting) {
-                const [voterData, votedIds] = await getVotingData(key);
+                const [voterData, votedIds, inactivityData] = await getVotingData(key);
+
                 ({ votedPlayerIds, voterByCandidate } = tallyVotes(voterData, votedIds));
+                ({ votedPlayerIds, isInactivityHanging } = inactivityCheck(votedPlayerIds, voterByCandidate, nextPhase, inactivityData, isInactivityHanging));
+
+                if (isInactivityHanging || votedPlayerIds.length === 1) {
+                    votedPlayerId = votedPlayerIds[0];
+                    if (isInactivityHanging) {
+                        votedPlayerCause = "inactivity";
+                    } else if (nextPhase === "hangVoteCount") {
+                        votedPlayerCause = "hang"
+                    } else {
+                        votedPlayerCause = "kill";
+                    }
+                }
             }
 
             const endGame = winningCondition(data, nextPhase);
@@ -36,7 +52,8 @@ export async function getGameState(roomCode: string): Promise<{ gameState: GameS
                 phase: nextPhase,
                 phaseEndAt: Date.now() + (phaseEndAtDuration * 1000),
                 round: isNextRound ? data.round + 1 : data.round,
-                votedPlayerId: (isVoting && votedPlayerIds.length === 1) ? votedPlayerIds[0] : "none",
+                votedPlayerId: votedPlayerId,
+                votedPlayerCause: votedPlayerCause,
                 voterByCandidateJson: JSON.stringify(voterByCandidate),
                 endGame: endGame,
                 resolvingToken: data.resolvingEndAt,
@@ -52,7 +69,8 @@ export async function getGameState(roomCode: string): Promise<{ gameState: GameS
             return { gameState: null, activePlayersIds };
         }
 
-        console.log("[lastDeadPlayerId]", gameData.lastDeadPlayerId)
+        console.log("[Dead Player ID]", gameData.lastDeadPlayerId)
+        console.log("[Dead Player Cause]", gameData.lastDeadPlayerCause)
         const validVoterByCandidate = mapVoterByCandidatesToNames(gameData);
 
         const gameState = {
@@ -89,6 +107,7 @@ export async function getGameState(roomCode: string): Promise<{ gameState: GameS
             phaseEndAt: Number(gameData.phaseEndAt),
             round: gameData.round,
             lastDeadPlayerId: gameData.lastDeadPlayerId,
+            lastDeadPlayerCause: gameData.lastDeadPlayerCause,
             voterByCandidate: validVoterByCandidate,
             endGame: gameData.endGame,
         }
@@ -103,5 +122,6 @@ export const dynamic = 'force-dynamic';
 export async function GET(_request: Request, context: RouteContext<'/api/game/[roomcode]'>) {
     const { roomcode } = await context.params;
     const { gameState, activePlayersIds } = await getGameState(roomcode)
+    if (!gameState) return NextResponse.json({ error: "Game stat not found" }, { status: 404 })
     return NextResponse.json({ gameState, activePlayersIds });
 }

@@ -1,4 +1,4 @@
-import { mapVoterByCandidatesToNames, phaseTransition, tallyVotes, winningCondition } from "@/lib/pure/game";
+import { inactivityCheck, mapVoterByCandidatesToNames, phaseTransition, tallyVotes, winningCondition } from "@/lib/pure/game";
 
 describe('pure func in game.ts', () => {
 
@@ -96,16 +96,28 @@ describe('pure func in game.ts', () => {
 
     describe('winningCondition()', () => {
         it("good won during the uptime", () => {
-            const result = winningCondition({ goodSide: 2, badSide: 0 }, "uptime");
+            const result = winningCondition({ goodSide: 2, badSide: 0, round: 3, roundLimit: 7 }, "uptime");
             expect(result).toBe("goodEnd")
         });
         it("bad won during the downtime", () => {
-            const result = winningCondition({ goodSide: 0, badSide: 1 }, "downtime");
+            const result = winningCondition({ goodSide: 0, badSide: 1, round: 3, roundLimit: 7 }, "downtime");
             expect(result).toBe("badEnd")
         });
         it("wait for uptime or downtime before changing endGame", () => {
-            const result = winningCondition({ goodSide: 0, badSide: 1 }, "killVoteCount");
+            const result = winningCondition({ goodSide: 0, badSide: 1, round: 3, roundLimit: 7 }, "killVoteCount");
             expect(result).toBe("inProgress")
+        });
+        it("round limit met or exceeded", () => {
+            const result = winningCondition({ goodSide: 2, badSide: 1, round: 7, roundLimit: 7 }, "uptime");
+            expect(result).toBe("drawEnd")
+        });
+        it("goodEnd takes precedence over drawEnd", () => {
+            const result = winningCondition({ goodSide: 2, badSide: 0, round: 7, roundLimit: 7 }, "uptime");
+            expect(result).toBe("goodEnd")
+        });
+        it("badEnd takes precedence over drawEnd", () => {
+            const result = winningCondition({ goodSide: 0, badSide: 1, round: 7, roundLimit: 7 }, "uptime");
+            expect(result).toBe("badEnd")
         });
     });
 
@@ -144,5 +156,86 @@ describe('pure func in game.ts', () => {
             });
             expect(result['none'].length).toBe(3);
         })
+    });
+
+    describe('inactivityCheck()', () => {
+        type inactivityTestCase = {
+            description: string;
+            votedPlayerIds: string[];
+            voterByCandidate: Record<string, string[]>;
+            expectedVotedPlayerIds: string[];
+            expectedIsInactivityHanging: boolean;
+        }
+        const cases: inactivityTestCase[] = [
+            {
+                description: "1. no tie (clean sweep 'none'), no hang -> run inactivity hang",
+                votedPlayerIds: ["none"],
+                voterByCandidate: { "none": ["p:id1:vote", "p:id2:vote", "p:id3:vote", "p:id4:vote"] },
+                expectedVotedPlayerIds: ["id4"],
+                expectedIsInactivityHanging: true,
+            },
+            {
+                description: "2. tie (four-way) with 'not voting', no hang -> run inactivity hang",
+                votedPlayerIds: ["none", "id1", "id2", "id3"],
+                voterByCandidate: { "none": ["p:id1:vote"], "id1": ["p:id2:vote"], "id2": ["p:id3:vote"], "id3": ["p:id4:vote"] },
+                expectedVotedPlayerIds: ["id4"],
+                expectedIsInactivityHanging: true,
+            },
+            {
+                description: "3. no tie (plurality 'not voting'), no hang -> run inactivity hang",
+                votedPlayerIds: ["none"],
+                voterByCandidate: { "none": ["p:id1:vote", "p:id2:vote"], "id1": ["p:id3:vote"], "id2": ["p:id4:vote"] },
+                expectedVotedPlayerIds: ["id4"],
+                expectedIsInactivityHanging: true,
+            },
+            {
+                description: "4. tie (two-way) with 'not voting', no hang -> run inactivity hang",
+                votedPlayerIds: ["none", "id1"],
+                voterByCandidate: { "none": ["p:id1:vote", "p:id2:vote"], "id1": ["p:id3:vote", "p:id4:vote"] },
+                expectedVotedPlayerIds: ["id4"],
+                expectedIsInactivityHanging: true
+            },
+            {
+                description: "5. no tie (plurality hang) with 'not voting, hang -> no inactivity hang",
+                votedPlayerIds: ["id1"],
+                voterByCandidate: { "none": ["p:id1:vote"], "id1": ["p:id2:vote", "p:id3:vote"], "id2": ["p:id4:vote"] },
+                expectedVotedPlayerIds: ["id1"],
+                expectedIsInactivityHanging: false
+            },
+            {
+                description: "6. tie (two-way), no hang -> no inactivity hang",
+                votedPlayerIds: ["id1", "id2"],
+                voterByCandidate: { "id1": ["p:id2:vote", "p:id3:vote"], "id2": ["p:id1:vote", "p:id4:vote"] },
+                expectedVotedPlayerIds: ["id1", "id2"],
+                expectedIsInactivityHanging: false
+            },
+            {
+                description: "7. no tie (majority hang), hang -> no inactivity hang",
+                votedPlayerIds: ["id2"],
+                voterByCandidate: { "id1": ["p:id2:vote"], "id2": ["p:id1:vote", "p:id3:vote", "p:id4:vote"] },
+                expectedVotedPlayerIds: ["id2"],
+                expectedIsInactivityHanging: false
+            },
+            {
+                description: "8. tie (four-way), no hang -> no inactivity hang",
+                votedPlayerIds: ["id1", "id2", "id3", "id4"],
+                voterByCandidate: { "id1": ["p:id2:vote"], "id2": ["p:id3:vote"], "id3": ["p:id4:vote"], "id4": ["p:id1:vote"] },
+                expectedVotedPlayerIds: ["id1", "id2", "id3", "id4"],
+                expectedIsInactivityHanging: false
+            },
+
+        ]
+
+        const inactivityData = { "p:id1:inactivity": 0, "p:id2:inactivity": 1, "p:id3:inactivity": 2, "p:id4:inactivity": 3 };
+        const nextPhase = "hangVoteCount";
+        const isInactivityHanging = false;
+
+        describe('4 player test with inactivity exist', () => {
+            test.each(cases)('$description', ({ votedPlayerIds, voterByCandidate, expectedVotedPlayerIds, expectedIsInactivityHanging }) => {
+                const result = inactivityCheck(votedPlayerIds, voterByCandidate, nextPhase, inactivityData, isInactivityHanging);
+                expect(result.votedPlayerIds).toEqual(expectedVotedPlayerIds);
+                expect(result.isInactivityHanging).toBe(expectedIsInactivityHanging);
+            });
+        });
     });
 });

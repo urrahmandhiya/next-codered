@@ -1,4 +1,5 @@
 import { DynamicFields } from "@/lib/definitions";
+import { shuffleArray } from "@/lib/utils";
 
 interface phaseTransition {
     round: number;
@@ -84,16 +85,25 @@ export function tallyVotes(voterData: Record<string, string>, votedIds: string[]
 interface winningCondition {
     goodSide: number;
     badSide: number;
+    roundLimit: number;
+    round: number;
 }
 
 export function winningCondition(data: winningCondition, nextPhase: string) {
     const isGoodWon = data.badSide === 0 && data.goodSide > 0;
     const isBadWon = data.goodSide === 0 && data.badSide > 0;
-    const isGameEnd = (isBadWon || isGoodWon) && (nextPhase === "downtime" || nextPhase === "uptime");
+
+    // round count was updated after current phase === "uptime"
+    // to ensure proper threshold upon roundLimit,
+    // the roundLimit flag was checked with round + 1;
+    const isRoundLimitExceeded = (data.round + 1) >= data.roundLimit && nextPhase === "uptime";
+
+    const isGameEnd = (isBadWon || isGoodWon || isRoundLimitExceeded) && (nextPhase === "downtime" || nextPhase === "uptime");
 
     if (isGameEnd) {
         if (isGoodWon) return "goodEnd";
         if (isBadWon) return "badEnd";
+        if (isRoundLimitExceeded) return "drawEnd";
     }
     return "inProgress"
 }
@@ -116,4 +126,30 @@ export function mapVoterByCandidatesToNames(gameData: mapVoterByCandidatesToName
         : {};
 
     return validVoterByCandidate;
+}
+
+export function inactivityCheck(
+    votedPlayerIds: string[],
+    voterByCandidate: Record<string, string[]>,
+    nextPhase: string,
+    inactivityData: Record<string, number>,
+    isInactivityHanging: boolean,
+) {
+    const threshold = 3;
+    const isNotHanging = votedPlayerIds[0] === "none";
+    const isTiedWithNotVoting = Object.keys(voterByCandidate).includes("none") && votedPlayerIds.length > 1;
+    const isHangVoting = nextPhase === "hangVoteCount";
+    const isInactivityExist = Object.keys(inactivityData).length;
+
+    if ((isNotHanging || isTiedWithNotVoting) && isHangVoting && isInactivityExist) {
+        let inactivities = Object.entries(inactivityData)
+            .filter((entry) => Number(entry[1]) >= threshold)
+            .map((entry) => entry[0].split(":")[1]);
+        inactivities = inactivities.length > 1 ? shuffleArray(inactivities) : inactivities;
+        if (inactivities.length) {
+            votedPlayerIds = inactivities;
+            isInactivityHanging = true;
+        }
+    }
+    return { votedPlayerIds, isInactivityHanging };
 }

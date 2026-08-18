@@ -13,6 +13,7 @@ export interface Room {
     discussDuration: number;
     voteDuration: number;
     phase?: string;
+    waitingRoomEndAt: number;
 }
 
 
@@ -33,6 +34,7 @@ type RoomMetaData = {
     activePlayersIds: string;
     discussDuration: number;
     voteDuration: number;
+    waitingRoomEndAt: number;
 };
 
 export type DynamicFields = {
@@ -53,9 +55,11 @@ export type GameRoomMetaData = {
     discussDuration: number;
     voteDuration: number;
     lastDeadPlayerId: string;
+    lastDeadPlayerCause: string;
     voterByCandidateJson: string;
     goodSide: number;
     badSide: number;
+    roundLimit: number;
     endGame: string;
     resolvingEndAt: number;
 }
@@ -67,6 +71,7 @@ export interface GameState {
     user: InGamePlayer;
     players: InGamePlayer[];
     lastDeadPlayerId: string;
+    lastDeadPlayerCause: string;
     voterByCandidate: Record<string, string[]>;
     endGame: string;
 }

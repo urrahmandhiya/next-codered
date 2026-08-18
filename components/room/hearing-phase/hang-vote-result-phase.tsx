@@ -9,12 +9,14 @@ import { cn } from "@/lib/utils";
 interface SecurityClearanceResultPhaseProps {
   round: number;
   lastDeadPlayer: InGamePlayer | null;
+  lastDeadPlayerCause: string;
   timeLeft: number;
 }
 
 export default function SecurityClearanceResultPhase({
   round,
   lastDeadPlayer,
+  lastDeadPlayerCause,
   timeLeft,
 }: SecurityClearanceResultPhaseProps) {
   const hasEliminated = !!lastDeadPlayer;
@@ -52,6 +54,9 @@ export default function SecurityClearanceResultPhase({
                 <h2 className="text-3xl font-extrabold text-white tracking-wide mb-2 uppercase">
                   {lastDeadPlayer.name}
                 </h2>
+                <span className="font-mono text-xs tracking-[0.2em] text-rose-400 font-bold uppercase mb-1">
+                  CAUSE OF DEATH: {lastDeadPlayerCause}
+                </span>
                 <div className="mt-2 inline-flex items-center gap-2 px-3 py-1 bg-rose-950/80 border border-rose-500/30 rounded-full">
                   <span className="w-1.5 h-1.5 rounded-full bg-rose-500" />
                   <span className="font-mono text-xs uppercase tracking-wider text-rose-300">

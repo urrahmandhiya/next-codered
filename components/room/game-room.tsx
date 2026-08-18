@@ -2,14 +2,11 @@
 
 import useSWR, { Fetcher } from "swr";
 import { useEffect, useRef, useState, useCallback, useMemo } from "react";
-import { getPlayerVote } from "@/lib/actions/game";
+import { setPlayerVote } from "@/lib/actions/game";
 import { GameState, InGamePlayer } from "@/lib/definitions";
 import PhaseLayout from "@/components/phase-layout";
 import { useRouter } from "next/navigation";
 import { User } from "lucide-react";
-
-const fetcher: Fetcher<{ gameState: GameState, activePlayersIds: string[] }> = (url: string) => fetch(url).then(res => res.json())
-
 import UptimePhase from "@/components/room/uptime-phase/uptime-phase";
 import HangVotePhase from "@/components/room/hearing-phase/hang-vote-phase";
 import HangVoteCountPhase from "@/components/room/hearing-phase/hang-vote-count-phase";
@@ -19,6 +16,8 @@ import KillVotePhase from "@/components/room/kill-vote-phase/kill-vote-phase";
 import KillVoteResultPhase from "@/components/room/kill-vote-phase/kill-vote-result-phase";
 import IncidentReportPhase from "@/components/room/incident-report/incident-report-phase";
 import EndScreenPhase from "@/components/room/end-screen/end-screen-phase";
+
+const fetcher: Fetcher<{ gameState: GameState, activePlayersIds: string[] }> = (url: string) => fetch(url).then(res => res.json())
 
 export default function GameRoom({ roomCode }: { roomCode: string }) {
   const router = useRouter();
@@ -53,6 +52,7 @@ export default function GameRoom({ roomCode }: { roomCode: string }) {
   const isUserAlive = user?.status === "alive";
   const voterByCandidate: Record<string, string[]> = gameData?.voterByCandidate ?? {};
   const lastDeadPlayer: InGamePlayer | null = players.find((p) => p.id === gameData?.lastDeadPlayerId) ?? null;
+  const lastDeadPlayerCause = gameData?.lastDeadPlayerCause ?? "none";
   const isStillPlaying = gameData?.endGame === "inProgress";
 
   useEffect(() => {
@@ -62,10 +62,10 @@ export default function GameRoom({ roomCode }: { roomCode: string }) {
   const handlePhaseTransition = useCallback(async () => {
     try {
       if (phase === "hangVote" && isUserAlive) {
-        await getPlayerVote(roomCode, voteValue);
+        await setPlayerVote(roomCode, voteValue);
       }
       if (phase === "killVote" && isUserBadSide && isUserAlive) {
-        await getPlayerVote(roomCode, voteValue);
+        await setPlayerVote(roomCode, voteValue);
       }
       await mutate();
     } catch {
@@ -263,6 +263,7 @@ export default function GameRoom({ roomCode }: { roomCode: string }) {
         <SecurityClearanceResultPhase
           round={round}
           lastDeadPlayer={lastDeadPlayer}
+          lastDeadPlayerCause={lastDeadPlayerCause}
           timeLeft={duration}
         />
       );

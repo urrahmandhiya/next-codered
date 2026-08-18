@@ -2,12 +2,16 @@
 
 import { Redis } from "@upstash/redis";
 import { Lock } from "@upstash/lock";
+import { ActionResponse, DynamicFields } from "@/lib/definitions";
 import { cookies } from "next/headers";
-import { ActionResponse, DynamicFields } from "../definitions";
 import { revalidatePath } from "next/cache";
 
 const redis = Redis.fromEnv();
 const MINIMAL_CURRENTPLAYERS = 4;
+
+// roundLimit = playersInRoom + ROUND_LIMIT_ADDITION
+const ROUND_LIMIT_ADDITION = 3; 
+
 const CURRENT_ROLES = ["hacker", "user"];
 const ROLES_SIDES: DynamicFields = {
     hacker: "bad",
@@ -70,7 +74,9 @@ export async function startGame(roomCode: string): Promise<ActionResponse> {
         const initialGameState: Record<string, string | number> = {
             roomStatus: "playing",
             round: 0,
+            roundLimit: Number(playersInRoom + ROUND_LIMIT_ADDITION),
             lastDeadPlayerId: "none",
+            lastDeadPlayerCause: "none",
             goodSide: 0,
             badSide: 0,
             endGame: "inProgress",
@@ -89,6 +95,7 @@ export async function startGame(roomCode: string): Promise<ActionResponse> {
                     initialGameState[`p:${shuffledPlayers[playerIdx]}:role`] = role;
                     initialGameState[`p:${shuffledPlayers[playerIdx]}:status`] = "alive";
                     initialGameState[`p:${shuffledPlayers[playerIdx]}:side`] = ROLES_SIDES[role];
+                    initialGameState[`p:${shuffledPlayers[playerIdx]}:inactivity`] = 0;
 
                     if (ROLES_SIDES[role] === "bad") {
                         initialGameState.badSide = Number(initialGameState.badSide) + 1;
@@ -116,7 +123,7 @@ export async function startGame(roomCode: string): Promise<ActionResponse> {
     }
 }
 
-export async function updateRoomSettings(roomCode: string, prevState: ActionResponse, formData: FormData): Promise<ActionResponse> {
+export async function updateRoomSettings(roomCode: string, _prevState: ActionResponse, formData: FormData): Promise<ActionResponse> {
     const upperCode = roomCode.toUpperCase();
     const key = `room:${upperCode}`;
     const playerCapacity = Number(formData.get("player-cap") || 0);
@@ -272,7 +279,7 @@ export async function deletePlayer(roomCode: string, id: string): Promise<Action
     }
 }
 
-export async function updatePlayerName(roomCode: string, prevState: ActionResponse, formData: FormData): Promise<ActionResponse> {
+export async function updatePlayerName(roomCode: string, _prevState: ActionResponse, formData: FormData): Promise<ActionResponse> {
     const upperCode = roomCode.toUpperCase();
     const userId = (await cookies()).get("user_id")?.value;
     const username = formData.get("username");
@@ -285,6 +292,49 @@ export async function updatePlayerName(roomCode: string, prevState: ActionRespon
             return { success: false, error: error.message }
         } else {
             return { success: false, error: String(error) }
+        }
+    }
+}
+
+
+export async function abortWaitingRoom(roomCode: string): Promise<ActionResponse> {
+    const upperCode = roomCode.toUpperCase();
+    const key = `room:${upperCode}`;
+
+    const lock = new Lock({
+        id: `lock:${key}`,
+        redis,
+        lease: 5000,
+    });
+
+    let isLockAcquired = false;
+    try {
+        isLockAcquired = await lock.acquire();
+        if (!isLockAcquired) {
+            return { success: false, error: "Unable to start game due to high traffic. Try again." };
+        }
+
+        const roomStatus = await redis.hget(key, "roomStatus");
+
+        if (!roomStatus) {
+            throw new Error("Room status not found.");
+        }
+
+        if (roomStatus !== "waiting") {
+            throw new Error("Game is starting, room can not be aborted.");
+        }
+
+        await redis.hset(key, { roomStatus: "aborted" });
+
+        return { success: true, message: "aborting waiting room" }
+    } catch (error) {
+        if (error instanceof Error) {
+            return { success: false, error: error.message }
+        }
+        return { success: false, error: String(error) }
+    } finally {
+        if (isLockAcquired) {
+            await lock.release();
         }
     }
 }

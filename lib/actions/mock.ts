@@ -8,6 +8,7 @@ import { redirect } from "next/navigation";
 
 const redis = Redis.fromEnv();
 const CURRENT_ROLES = ["hacker", "user"];
+const WAITING_ROOM_DURATION = 20;
 
 export async function goToWaitingRoom() {
     const hostId = crypto.randomUUID();
@@ -37,6 +38,7 @@ export async function goToWaitingRoom() {
         playersInRoom: 4,
         discussDuration: 15,
         voteDuration: 15,
+        waitingRoomEndAt: Date.now() + (Number(WAITING_ROOM_DURATION) * 1000),
     };
 
     const rolesState: { [key: string]: string | number } = {}
@@ -55,9 +57,9 @@ export async function goToWaitingRoom() {
     p.hset(`room:${roomCode}`, { ...initialRoomState, ...playersState, ...rolesState});
 
     // keys are set to expire in five minutes
-    p.expire(`room:${roomCode}`, 300)
-    p.expire(`room:${roomCode}:activePlayersIds`, 300)
-    p.expire(`room:${roomCode}:deadPlayersIds`, 300)
+    p.expire(`room:${roomCode}`, Number(WAITING_ROOM_DURATION) + 30)
+    p.expire(`room:${roomCode}:activePlayersIds`, Number(WAITING_ROOM_DURATION) + 30)
+    p.expire(`room:${roomCode}:deadPlayersIds`, Number(WAITING_ROOM_DURATION) + 30)
 
     try {
         await p.exec();

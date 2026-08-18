@@ -7,7 +7,7 @@ const redis = Redis.fromEnv();
 
 export async function gatekeepResolver(
     key: string, currentTime: number):
-    Promise<[boolean, Omit<GameRoomMetaData, 'lastDeadPlayerId' | 'voterByCandidateJson'>]> {
+    Promise<[boolean, Omit<GameRoomMetaData, 'lastDeadPlayerId' | 'voterByCandidateJson' | 'lastDeadPlayerCause'>]> {
     const gatekeepScript = `
     local gameStateFields = {
         'phase',
@@ -19,6 +19,7 @@ export async function gatekeepResolver(
         'badSide',
         'goodSide',
         'endGame',
+        'roundLimit',
     }
 
     local numberFieldSet = {
@@ -29,6 +30,7 @@ export async function gatekeepResolver(
         ['resolvingEndAt'] = true,
         ['goodSide'] = true,
         ['badSide'] = true,
+        ['roundLimit'] = true,
     }
 
     local value = redis.call('HMGET', KEYS[1], unpack(gameStateFields))
@@ -57,39 +59,74 @@ export async function gatekeepResolver(
     return {isResolver, cjson.encode(data)}
     `;
 
-    const [isResolver, data] = await redis.eval(gatekeepScript, [key], [currentTime]) as [boolean, Omit<GameRoomMetaData, 'lastDeadPlayerId' | 'voterByCandidateJson'>];
+    const [isResolver, data] = await redis.eval(gatekeepScript, [key], [currentTime]) as [
+        boolean, 
+        Omit<GameRoomMetaData, 'lastDeadPlayerId' | 'voterByCandidateJson' | 'lastDeadPlayerCause'>
+    ];
     return [isResolver, data];
 }
 
 
-export async function getVotingData(key: string): Promise<[Record<string, string>, string[]]> {
+export async function getVotingData(key: string): Promise<[Record<string, string>, string[], Record<string, number>]> {
     const voteScript = `
     local activePlayersIdsKey = KEYS[1] .. ':activePlayersIds'
     local playerIds = redis.call('SMEMBERS', activePlayersIdsKey)
+    local phase = redis.call('HGET', KEYS[1], 'phase')
     local voteFields = {}
+    local inactivityFields = {}
 
     for i = 1, #playerIds, 1 do
         table.insert(voteFields, 'p:' .. playerIds[i] .. ':vote')
+        table.insert(inactivityFields, 'p:' .. playerIds[i] .. ':inactivity')
     end
 
     local votedValue = redis.call('HMGET', KEYS[1], unpack(voteFields))
     local votedIds = {}
     local voterData = {}
 
+    local inactivityUpdate = {}
+
     for i, field in ipairs(voteFields) do
         if votedValue[i] then
             voterData[field] = votedValue[i]
             table.insert(votedIds, votedValue[i])
         end
+
+        -- increment inactivity counter if player vote not voting on hangVote
+        -- and reset to 0 if vote on another player
+        if (phase == 'hangVote') then
+            if votedValue[i] == 'none' then
+                local current = redis.call('HGET', KEYS[1], inactivityFields[i])
+                table.insert(inactivityUpdate, inactivityFields[i])
+                table.insert(inactivityUpdate, (tonumber(current) + 1))
+            else
+                table.insert(inactivityUpdate, inactivityFields[i])
+                table.insert(inactivityUpdate, 0)
+            end
+        end
     end 
+
+    local inactivityData = {}
+
+    if next(inactivityUpdate) ~= nil then
+        redis.call('HSET', KEYS[1], unpack(inactivityUpdate))
+
+        local inactivityValue = redis.call('HMGET', KEYS[1], unpack(inactivityFields))
+
+        for i, field in ipairs(inactivityFields) do
+            if inactivityValue[i] then
+                inactivityData[field] = inactivityValue[i]
+            end
+        end
+    end
 
     -- clean the vote fields for next voting
     redis.call('HDEL', KEYS[1], unpack(voteFields))
-    return {cjson.encode(voterData), votedIds}
+    return { cjson.encode(voterData), votedIds, cjson.encode(inactivityData) }
     `;
 
-    const [voterData, votedIds] = await redis.eval(voteScript, [key], []) as [Record<string, string>, string[]];
-    return [voterData, votedIds]
+    const [voterData, votedIds, inactivityData] = await redis.eval(voteScript, [key], []) as [Record<string, string>, string[], Record<string, number>];
+    return [voterData, votedIds, inactivityData]
 }
 
 export async function writebackResolver(key: string, userId: string, updatedState: Record<string, string | number>) {
@@ -113,11 +150,13 @@ export async function writebackResolver(key: string, userId: string, updatedStat
         -- if vote result is not tied or none
         if updatedState.votedPlayerId ~= "none" then
             -- execute the voted player
-            local votedPlayerStatus = 'p:' .. updatedState.votedPlayerId .. ':status'
             local deadPlayerId = updatedState.votedPlayerId
+            local deadPlayerStatus = 'p:' .. deadPlayerId .. ':status'
+            local deadPlayerCause = updatedState.votedPlayerCause
             redis.call('HSET', key, 
-                votedPlayerStatus, 'dead', 
-                'lastDeadPlayerId', updatedState.votedPlayerId
+                deadPlayerStatus, 'dead', 
+                'lastDeadPlayerId', deadPlayerId,
+                'lastDeadPlayerCause', deadPlayerCause
             )
             redis.call('SADD', deadPlayersIdsKey, deadPlayerId)
 
@@ -127,10 +166,11 @@ export async function writebackResolver(key: string, userId: string, updatedStat
             redis.call('HINCRBY', key, decreasedSide .. 'Side', -1)
         end
 
-        -- clean lastDeadPlayerId after count phases
+        -- clean executed player states after count phases
         if updatedState.phase == 'uptime' or updatedState.phase == 'downtime' then
             redis.call('HSET', key, 
                 'lastDeadPlayerId', "none", 
+                'lastDeadPlayerCause', "none",
                 'voterByCandidateJson', "{}"
             )
         end
@@ -168,6 +208,7 @@ export async function gameRoomPoll(key: string, userId: string): Promise<[RedisG
         'phaseEndAt',
         'round',
         'lastDeadPlayerId',
+        'lastDeadPlayerCause',
         'voterByCandidateJson',
         'endGame', 
     }
