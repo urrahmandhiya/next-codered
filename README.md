@@ -39,6 +39,16 @@ Start the development server:
 pnpm dev
 ```
 
+### 4. Local Multiplayer Testing
+
+A minimum number of players is required to start a game. To simulate multiple players locally, use isolated browser sessions:
+
+* Firefox: Multi-Account Containers
+* Chrome/Edge: Separate profiles
+* Multiple browser usage
+
+Incognito may not work (only for one player), since they share the same cookie jar, so opening more than one will overwrite another session.
+
 ## Core Mechanics
 
 A public GDD will be up soon!
