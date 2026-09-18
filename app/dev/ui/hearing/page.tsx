@@ -106,6 +106,7 @@ export default function DevHearingUiPage() {
 
       {subPhase === "result_terminated" && (
         <SecurityClearanceResultPhase
+          lastDeadPlayerCause="hang"
           round={1}
           lastDeadPlayer={currentTerminatedPlayer}
           timeLeft={timeLeft}
@@ -114,6 +115,7 @@ export default function DevHearingUiPage() {
 
       {subPhase === "result_consensus" && (
         <SecurityClearanceResultPhase
+          lastDeadPlayerCause="hang"
           round={1}
           lastDeadPlayer={null}
           timeLeft={timeLeft}

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { ArrowLeft, Play, Pause, ChevronLeft, ChevronRight, RotateCcw } from "lucide-react";
 import UptimePhase from "@/components/room/uptime-phase/uptime-phase";
@@ -10,7 +10,6 @@ import SecurityClearanceResultPhase from "@/components/room/hearing-phase/hang-v
 import KillVotePhase from "@/components/room/kill-vote-phase/kill-vote-phase";
 import KillVoteResultPhase from "@/components/room/kill-vote-phase/kill-vote-result-phase";
 import DowntimePhase from "@/components/room/downtime-phase/downtime-phase";
-import DowntimeBadPhase from "@/components/room/downtime-phase/downtime-bad-phase";
 import IncidentReportPhase from "@/components/room/incident-report/incident-report-phase";
 import EndScreenPhase from "@/components/room/end-screen/end-screen-phase";
 import { InGamePlayer } from "@/lib/definitions";
@@ -207,6 +206,7 @@ export default function DevUiCyclePage() {
 
       {(currentStepIndex === 4 || currentStepIndex === 10) && (
         <SecurityClearanceResultPhase
+          lastDeadPlayerCause="hang"
           round={currentPhase.round}
           lastDeadPlayer={currentStepIndex === 4 ? mockTerminatedPlayer : null}
           timeLeft={timeLeft}
